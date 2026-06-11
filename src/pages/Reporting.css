@@ -1,0 +1,46 @@
+.reporting-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reporting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.report-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  gap: 1rem;
+}
+
+.report-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.completeness-check {
+  margin: 0.5rem 0;
+}
+
+.report-actions {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.report-actions button {
+  width: 100%;
+}

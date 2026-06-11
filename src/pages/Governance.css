@@ -1,0 +1,29 @@
+.gov-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.gov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.gov-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gov-section h3 {
+  font-size: 1.125rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.5rem;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
