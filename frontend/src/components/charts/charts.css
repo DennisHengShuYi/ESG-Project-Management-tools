@@ -1,0 +1,45 @@
+/* ── KPI severity (zero-tolerance) variant ──────────────────────── */
+.kpi-severity .kpi-value {
+  font-size: 1.6rem;
+}
+
+/* ── Gauge / progress bar ────────────────────────────────────────── */
+.gauge-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gauge-track {
+  width: 100%;
+  background: var(--surface-hover);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.gauge-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.gauge-pct-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Disclosure card header (title + status badge) ──────────────── */
+.disclosure-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.disclosure-card-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

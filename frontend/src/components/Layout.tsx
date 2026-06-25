@@ -1,0 +1,113 @@
+import { useState, useEffect, useRef } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import logo from '../assets/GG Logo Transparent.png';
+import './Layout.css';
+
+const Layout = () => {
+  const { user, signOut } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const tabs = [
+    { name: 'Dashboard', path: '/' },
+    { name: 'Events', path: '/events' },
+    { name: 'Governance', path: '/governance' },
+    { name: 'SDG', path: '/sdg' },
+  ];
+
+  // Get initial character from user email
+  const userEmail = user?.email || '';
+  const avatarChar = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div className="app-container">
+      <header className="top-nav">
+        <div className="nav-brand">
+          <img src={logo} alt="Green Generation Logo" className="brand-logo-img" />
+          <div className="brand-text">
+            <span className="brand-subtitle">ESG Project Management Tool</span>
+          </div>
+        </div>
+        <nav className="nav-tabs">
+          {tabs.map((tab) => {
+            return (
+              <NavLink 
+                key={tab.path} 
+                to={tab.path} 
+                className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
+              >
+                <span>{tab.name}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+        <div className="user-profile" ref={dropdownRef}>
+          <button 
+            type="button"
+            className="avatar-btn"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            aria-expanded={dropdownOpen}
+            aria-haspopup="true"
+          >
+            <div className="avatar">{avatarChar}</div>
+          </button>
+          
+          {dropdownOpen && (
+            <div className="dropdown-menu">
+              <div className="dropdown-user-info">
+                <span className="dropdown-label">Signed in as</span>
+                <span className="dropdown-email" title={userEmail}>
+                  {userEmail}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                className="logout-btn" 
+                onClick={() => {
+                  setDropdownOpen(false);
+                  signOut();
+                }}
+              >
+                <svg 
+                  width="14" 
+                  height="14" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Log Out
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
+export default Layout;

@@ -27,3 +27,10 @@ dist-ssr
 .env.*
 !.env.example
 .claude/
+
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/blob-report/
+/frontend/playwright/.cache/
+/frontend/tests/e2e/.auth/
