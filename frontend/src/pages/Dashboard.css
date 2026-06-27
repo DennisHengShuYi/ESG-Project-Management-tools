@@ -46,63 +46,8 @@
 @media (max-width: 1100px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px)  { .kpi-row { grid-template-columns: 1fr; } }
 
-.kpi-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.kpi-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.kpi-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.kpi-value {
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.kpi-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.kpi-sub {
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-}
-
-.kpi-trend {
-  font-size: 0.68rem;
-  font-weight: 600;
-  margin-top: 0.1rem;
-}
-
-.kpi-trend-good { color: var(--success); }
-.kpi-trend-bad  { color: var(--danger); }
+/* .kpi-card and friends now live in components/charts/charts.css (shared
+   with EventDetail) */
 
 /* ── Aggregate module card ──────────────────────────────────────── */
 .aggregate-card {
@@ -150,85 +95,9 @@
   gap: 1.25rem;
 }
 
-/* ── Charts row ─────────────────────────────────────────────────── */
-.charts-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-@media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
-
-.chart-card {
-  padding: 1.25rem 1.25rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  min-height: 290px;
-}
-
-.chart-card.chart-wide { grid-column: span 2; }
-.chart-card.chart-full { grid-column: 1 / -1; }
-
-@media (max-width: 900px) {
-  .chart-card.chart-wide,
-  .chart-card.chart-full { grid-column: span 1; }
-}
-
-.chart-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.75rem;
-}
-
-/* ── Empty chart state ──────────────────────────────────────────── */
-.chart-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: var(--text-tertiary);
-  min-height: 160px;
-}
-
-.chart-empty p {
-  font-size: 0.8125rem;
-}
-
-/* ── Custom tooltip ─────────────────────────────────────────────── */
-.custom-tooltip {
-  padding: 0.6rem 0.9rem;
-  min-width: 130px;
-  background: var(--surface) !important;
-  border: 1px solid var(--border-color) !important;
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-}
-
-.tooltip-label {
-  font-weight: 600;
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
-  color: var(--text-primary);
-}
-
-.custom-tooltip p {
-  font-size: 0.75rem;
-  margin: 0.1rem 0;
-}
-
-/* ── Recharts SVG overrides for dark mode ───────────────────────── */
-.recharts-cartesian-axis-tick-value {
-  fill: var(--text-secondary) !important;
-}
-
-.recharts-legend-item-text {
-  color: var(--text-secondary) !important;
-}
+/* .charts-row, .chart-card, .chart-title, .chart-empty, .custom-tooltip, and
+   the recharts SVG overrides now live in components/charts/charts.css
+   (shared with EventDetail) */
 
 /* ── Metrics grid (kept from EditableModule) ────────────────────── */
 .metrics-grid {

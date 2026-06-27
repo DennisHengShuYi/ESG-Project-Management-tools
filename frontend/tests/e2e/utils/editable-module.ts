@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -29,11 +29,17 @@ export function editFieldInput(page: Page, label: string) {
 }
 
 export async function fillEditField(page: Page, label: string, value: string) {
-  await editFieldInput(page, label).fill(value);
+  const input = editFieldInput(page, label);
+  await input.fill(value);
+  // Confirms the DOM (and thus React's onChange -> setDraft) actually picked
+  // up the value before moving on — under load, a Save click immediately
+  // after fill() can otherwise race ahead of React processing the input event.
+  await expect(input).toHaveValue(value);
 }
 
 export async function startEdit(page: Page) {
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 }
 
 export async function saveEdit(page: Page) {

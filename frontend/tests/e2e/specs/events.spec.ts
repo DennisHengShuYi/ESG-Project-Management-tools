@@ -30,19 +30,24 @@ test('empty event name is rejected client-side and nothing is persisted', async 
   expect(after.length).toBe(before.length);
 });
 
-test('FINDING: creating an event with no Start/End Date crashes the backend (500)', async ({ page }) => {
-  // EMPTY_EVENT defaults event_start_date/event_end_date to '' (not null/undefined).
-  // POST /api/events (backend/src/server.js CORE_FIELDS passthrough) forwards that
-  // empty string straight into a Postgres `date` column, which rejects it outright:
-  // "invalid input syntax for type date: \"\"" — a 500, surfaced to the user only
-  // as the generic "Failed to save. Please try again." with no indication why.
+test('FIXED: creating an event with no Start/End Date no longer crashes the backend', async ({ page }) => {
+  // Regression test: EMPTY_EVENT defaults event_start_date/event_end_date to
+  // '' (not null/undefined). POST /api/events used to forward that empty
+  // string straight into a Postgres `date` column, which rejected it outright
+  // ("invalid input syntax for type date") as a 500. server.js now normalizes
+  // '' to null for both fields before the insert.
   const name = tag('NoDates');
   await page.getByRole('button', { name: 'New Event' }).click();
   await modalField(page, 'Event Name').fill(name);
   await page.getByRole('button', { name: 'Create Event' }).click();
-  await expect(page.getByText('Failed to save. Please try again.')).toBeVisible();
+  await expect(page.getByRole('cell', { name })).toBeVisible();
+
   const serverEvents = await api.getEvents();
-  expect(serverEvents.find((e: any) => e.event_name === name)).toBeUndefined();
+  const match = serverEvents.find((e: any) => e.event_name === name);
+  expect(match).toBeTruthy();
+  expect(match.event_start_date).toBeNull();
+  expect(match.event_end_date).toBeNull();
+  createdIds.push(match.id);
 });
 
 test('creating an event persists it in the backend, not just in the UI', async ({ page }) => {
@@ -51,8 +56,6 @@ test('creating an event persists it in the backend, not just in the UI', async (
   await modalField(page, 'Event Name').fill(name);
   await modalField(page, 'Client / Organisation').fill('Acme Corp');
   await modalField(page, 'Location').fill('Penang');
-  // Dates filled to dodge the empty-date 500 above — this test is about
-  // name/client/location persistence, not date handling.
   await modalField(page, 'Start Date').fill('2026-01-01');
   await modalField(page, 'End Date').fill('2026-01-02');
   await page.getByRole('button', { name: 'Create Event' }).click();
@@ -74,7 +77,6 @@ test('setting a Start Date auto-fills Reporting Year, and it persists', async ({
   await page.getByRole('button', { name: 'New Event' }).click();
   await modalField(page, 'Event Name').fill(name);
   await modalField(page, 'Start Date').fill('2026-06-24');
-  await modalField(page, 'End Date').fill('2026-06-25'); // avoid the empty-date 500 (see FINDING test above)
   await page.getByRole('button', { name: 'Create Event' }).click();
 
   const row = page.getByRole('row', { name });
@@ -92,8 +94,11 @@ test('a far-future Start Date still auto-fills the matching Reporting Year (no h
   await page.getByRole('button', { name: 'New Event' }).click();
   await modalField(page, 'Event Name').fill(name);
   await modalField(page, 'Start Date').fill('2031-01-15');
-  await modalField(page, 'End Date').fill('2031-01-16'); // avoid the empty-date 500 (see FINDING test above)
   await page.getByRole('button', { name: 'Create Event' }).click();
+
+  // Wait for the modal's save to actually land before checking via API —
+  // otherwise this can race ahead of the in-flight POST ("Saving..." state).
+  await expect(page.getByRole('cell', { name })).toBeVisible();
 
   const serverEvents = await api.getEvents();
   const match = serverEvents.find((e: any) => e.event_name === name);

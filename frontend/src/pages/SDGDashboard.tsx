@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getEventsFull, getCorporateGovernance } from '../utils/db';
+import { useReportingYear } from '../hooks/useReportingYear';
 import { CheckCircle2, AlertCircle, Circle, Download } from 'lucide-react';
 import './SDGDashboard.css';
 
@@ -24,23 +25,15 @@ const ProgressBar = ({ pct, color }) => (
 /* ═══════════════════════════════════════════════════════════════════
    COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-const CURRENT_YEAR = new Date().getFullYear();
-
 const SDGDashboard = () => {
   const [events, setEvents]   = useState([]);
   const [corp, setCorp]       = useState<any>({});
-  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events);
 
   useEffect(() => {
     getEventsFull().then(setEvents);
     getCorporateGovernance().then(setCorp);
   }, []);
-
-  /* Years actually present in event data, newest first, current year always included */
-  const availableYears = Array.from(new Set([
-    String(CURRENT_YEAR),
-    ...events.map((e: any) => e.reporting_year).filter(Boolean),
-  ])).sort((a, b) => Number(b) - Number(a));
 
   const yearEvents = events.filter(e => e.reporting_year === selectedYear);
   const n  = yearEvents.length || 1;
@@ -62,13 +55,16 @@ const SDGDashboard = () => {
   const totalCommunity  = sum('community_invest_rm');
   const avgLocalSupplier = avg('local_supplier_spend_pct');
   const privacyBreaches = sum('data_breach_complaints');
-  const crewFemale      = sum('crew_female_count');
-  const crewTotal       = sum('crew_female_count') + sum('crew_male_count');
-  const femalePct       = crewTotal > 0 ? (crewFemale / crewTotal) * 100 : 0;
+  // Board gender representation, from the org-level HR & Diversity module
+  // (edited on the Dashboard's "Enterprise HR & Diversity" tab). The events_flat
+  // view's crew_female_count/crew_male_count columns are unwired placeholders
+  // (hardcoded to 0 in the view) — using them here always read as "untracked".
+  const boardFemalePct  = Number(corp.board_female_pct) || 0;
+  const hasBoardDiversityData = corp.board_female_pct != null;
   const corruptIncidents = Number(corp.confirmed_corruption_incidents) || 0;
   const corruptTraining  = Number(corp.anticorrupt_training_coverage)  || 0;
   const hasGovOversight  = !!(corp.gov_committee_name || corp.gov_meeting_frequency);
-  const hasClimateScenario = !!(corp.risk_assessment_text);
+  const hasClimateScenario = !!(corp.scenario_analysis_text);
 
   /* ── SDG definitions with achievement logic ─────────────────────── */
   const sdgs = [
@@ -89,12 +85,12 @@ const SDGDashboard = () => {
       num: 5, name: 'Gender Equality',
       color: '#FF3A21',
       target: '5.5 Women\'s participation & leadership | 5.1 End gender discrimination',
-      metric: crewTotal > 0 ? `${femalePct.toFixed(1)}% female crew` : 'Diversity not tracked',
+      metric: hasBoardDiversityData ? `${boardFemalePct.toFixed(1)}% female board representation` : 'Board diversity not tracked',
       module: 'Module B + E',
-      status: crewTotal > 0 && totalHrComplaints === 0
-        ? STATUS.ACHIEVED
-        : crewTotal > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: crewTotal > 0 ? Math.min(100, femalePct * 2) : 0,
+      status: !hasBoardDiversityData
+        ? STATUS.NOT_STARTED
+        : (boardFemalePct >= 30 && totalHrComplaints === 0) ? STATUS.ACHIEVED : STATUS.PARTIAL,
+      pct: hasBoardDiversityData ? Math.min(100, (boardFemalePct / 30) * 100) : 0,
     },
     {
       num: 6, name: 'Clean Water & Sanitation',
@@ -134,13 +130,13 @@ const SDGDashboard = () => {
       color: '#DD1367',
       target: '10.3 Equal opportunity | 10.2 Social inclusion',
       metric: totalHrComplaints === 0
-        ? `Zero discrimination complaints | ${crewTotal > 0 ? `${femalePct.toFixed(1)}% female` : 'Diversity tracked'}`
+        ? `Zero discrimination complaints | ${hasBoardDiversityData ? `${boardFemalePct.toFixed(1)}% female board` : 'Diversity tracked'}`
         : `${totalHrComplaints} HR complaint(s)`,
       module: 'Module B + C',
-      status: totalHrComplaints === 0 && crewTotal > 0
+      status: totalHrComplaints === 0 && hasBoardDiversityData
         ? STATUS.ACHIEVED
         : totalHrComplaints === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalHrComplaints === 0 ? (crewTotal > 0 ? 100 : 50) : 10,
+      pct: totalHrComplaints === 0 ? (hasBoardDiversityData ? 100 : 50) : 10,
     },
     {
       num: 11, name: 'Sustainable Cities',
@@ -198,6 +194,25 @@ const SDGDashboard = () => {
   const partial   = sdgs.filter(s => s.status === STATUS.PARTIAL).length;
   const notStarted = sdgs.filter(s => s.status === STATUS.NOT_STARTED).length;
 
+  const handleExportCsv = () => {
+    const header = 'SDG,Name,Status,Progress (%),Metric,Target\n';
+    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = sdgs.map(s => [
+      s.num, s.name, statusLabel[s.status], s.pct.toFixed(0), s.metric, s.target,
+    ].map(escape).join(','));
+
+    const csv = header + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sdg_impact_FYE${selectedYear}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   /* ── Render ───────────────────────────────────────────────────── */
   return (
     <div className="sdg-container animate-fade-in">
@@ -213,8 +228,8 @@ const SDGDashboard = () => {
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
             {availableYears.map(y => <option key={y} value={y}>{`FYE ${y}`}</option>)}
           </select>
-          <button className="btn btn-primary">
-            <Download size={18} /> Export PDF
+          <button className="btn btn-primary" onClick={handleExportCsv}>
+            <Download size={18} /> Export CSV
           </button>
         </div>
       </div>

@@ -7,10 +7,16 @@ const Settings = () => {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
+    // See Governance.tsx for why this guard matters: without it,
+    // React.StrictMode's dev-mode double-invoke can let a stale fetch
+    // silently overwrite an edit made in the gap between the two calls.
+    let active = true;
     const load = async () => {
-      setSettings(await getSettings());
+      const data = await getSettings();
+      if (active) setSettings(data);
     };
     load();
+    return () => { active = false; };
   }, []);
 
   const handleInputChange = (e) => {

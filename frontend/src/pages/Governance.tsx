@@ -7,10 +7,16 @@ const Governance = () => {
   const [formData, setFormData] = useState(null);
 
   useEffect(() => {
+    // Guards against React.StrictMode's dev-mode double-invoke: without this,
+    // two concurrent fetches can race, and whichever resolves last overwrites
+    // formData — silently discarding an edit made in the gap between them.
+    let active = true;
     const load = async () => {
-      setFormData(await getCorporateGovernance());
+      const data = await getCorporateGovernance();
+      if (active) setFormData(data);
     };
     load();
+    return () => { active = false; };
   }, []);
 
   const handleInputChange = (e) => {
@@ -24,8 +30,12 @@ const Governance = () => {
   };
 
   const handleSave = async () => {
-    await saveCorporateGovernance(formData);
-    alert('Corporate Governance data saved successfully.');
+    const result = await saveCorporateGovernance(formData);
+    if (result.success) {
+      alert('Corporate Governance data saved successfully.');
+    } else {
+      alert(`Failed to save Corporate Governance data: ${result.error || 'Unknown error.'}`);
+    }
   };
 
   if (!formData) return <div>Loading...</div>;
@@ -50,21 +60,34 @@ const Governance = () => {
             <input type="text" name="gov_committee_name" value={formData.gov_committee_name || ''} onChange={handleInputChange} className="input-field" />
           </div>
           <div className="form-group">
+            <label>Committee Meeting Frequency</label>
+            <input type="text" name="gov_meeting_frequency" placeholder="e.g. Quarterly" value={formData.gov_meeting_frequency || ''} onChange={handleInputChange} className="input-field" />
+          </div>
+          <div className="form-group">
             <label>Board Oversight Description</label>
-            <textarea 
-              rows={4} 
-              className="input-field" 
-              value={formData.gov_board_oversight_text ? formData.gov_board_oversight_text.replace(/<[^>]*>?/gm, '') : ''} 
-              onChange={(e) => handleHtmlChange('gov_board_oversight_text', `<p>${e.target.value}</p>`)} 
+            <textarea
+              rows={4}
+              className="input-field"
+              value={formData.gov_board_oversight_text ? formData.gov_board_oversight_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('gov_board_oversight_text', `<p>${e.target.value}</p>`)}
             />
           </div>
           <div className="form-group">
             <label>Executive Accountability</label>
-            <textarea 
-              rows={3} 
-              className="input-field" 
-              value={formData.gov_executive_accountability_text ? formData.gov_executive_accountability_text.replace(/<[^>]*>?/gm, '') : ''} 
-              onChange={(e) => handleHtmlChange('gov_executive_accountability_text', `<p>${e.target.value}</p>`)} 
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.gov_executive_accountability_text ? formData.gov_executive_accountability_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('gov_executive_accountability_text', `<p>${e.target.value}</p>`)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Sustainability Strategy Integration</label>
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.gov_strategy_integration_text ? formData.gov_strategy_integration_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('gov_strategy_integration_text', `<p>${e.target.value}</p>`)}
             />
           </div>
         </div>
@@ -73,20 +96,38 @@ const Governance = () => {
           <h3>B2 — Strategy</h3>
           <div className="form-group">
             <label>Short-Term Risks (0–1 year)</label>
-            <textarea 
-              rows={3} 
-              className="input-field" 
-              value={formData.strategy_short_term_text ? formData.strategy_short_term_text.replace(/<[^>]*>?/gm, '') : ''} 
-              onChange={(e) => handleHtmlChange('strategy_short_term_text', `<p>${e.target.value}</p>`)} 
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.strategy_short_text ? formData.strategy_short_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('strategy_short_text', `<p>${e.target.value}</p>`)}
             />
           </div>
           <div className="form-group">
             <label>Medium-Term Risks (1–5 years)</label>
-            <textarea 
-              rows={3} 
-              className="input-field" 
-              value={formData.strategy_medium_term_text ? formData.strategy_medium_term_text.replace(/<[^>]*>?/gm, '') : ''} 
-              onChange={(e) => handleHtmlChange('strategy_medium_term_text', `<p>${e.target.value}</p>`)} 
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.strategy_medium_text ? formData.strategy_medium_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('strategy_medium_text', `<p>${e.target.value}</p>`)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Long-Term Risks (5+ years)</label>
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.strategy_long_text ? formData.strategy_long_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('strategy_long_text', `<p>${e.target.value}</p>`)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Climate Scenario Analysis</label>
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.scenario_analysis_text ? formData.scenario_analysis_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('scenario_analysis_text', `<p>${e.target.value}</p>`)}
             />
           </div>
         </div>
@@ -95,11 +136,20 @@ const Governance = () => {
           <h3>B3 — Risk Management</h3>
           <div className="form-group">
             <label>Risk Identification Process</label>
-            <textarea 
-              rows={3} 
-              className="input-field" 
-              value={formData.risk_identification_text ? formData.risk_identification_text.replace(/<[^>]*>?/gm, '') : ''} 
-              onChange={(e) => handleHtmlChange('risk_identification_text', `<p>${e.target.value}</p>`)} 
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.risk_identification_text ? formData.risk_identification_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('risk_identification_text', `<p>${e.target.value}</p>`)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Risk Assessment Methodology</label>
+            <textarea
+              rows={3}
+              className="input-field"
+              value={formData.risk_assessment_text ? formData.risk_assessment_text.replace(/<[^>]*>?/gm, '') : ''}
+              onChange={(e) => handleHtmlChange('risk_assessment_text', `<p>${e.target.value}</p>`)}
             />
           </div>
           <div className="form-group">
@@ -111,23 +161,11 @@ const Governance = () => {
             </select>
           </div>
         </div>
-
-        <div className="glass-card gov-section">
-          <h3>IFRS S2 — Climate Finance</h3>
-          <div className="form-group">
-            <label>Transition Risk Exposure (RM)</label>
-            <input type="number" name="climate_transition_risk_rm" value={formData.climate_transition_risk_rm || 0} onChange={handleInputChange} className="input-field" />
-          </div>
-          <div className="form-group">
-            <label>Physical Risk Exposure (RM)</label>
-            <input type="number" name="climate_physical_risk_rm" value={formData.climate_physical_risk_rm || 0} onChange={handleInputChange} className="input-field" />
-          </div>
-          <div className="form-group">
-            <label>Capital Deployed for Climate (RM)</label>
-            <input type="number" name="climate_capex_rm" value={formData.climate_capex_rm || 0} onChange={handleInputChange} className="input-field" />
-          </div>
-        </div>
       </div>
+
+      {/* Climate Finance (IFRS S2) numeric metrics are edited from the
+          Dashboard's "Climate Finance" tab, which covers the full field set —
+          this page only owns the narrative/qualitative disclosures above. */}
     </div>
   );
 };

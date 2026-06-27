@@ -4,6 +4,12 @@
   gap: 1.5rem;
 }
 
+.event-module-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 /* ── Module Tabs (Overview sub-tabs) ──────────────────── */
 .module-tabs {
   display: flex;

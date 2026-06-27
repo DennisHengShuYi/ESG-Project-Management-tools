@@ -14,14 +14,12 @@ test.afterAll(async () => {
   await api.saveGovernance(originalGov, '2025');
 });
 
-// FINDING (see final report): Governance.tsx's data-loading useEffect has no
-// mount-guard/cancellation, and React.StrictMode (enabled in main.tsx) double-
-// invokes effects in dev mode. Two concurrent getCorporateGovernance() fetches
-// race; whichever resolves LAST does a flat setFormData(...) that can silently
-// discard an edit made in the gap between the two. Confirmed via trace inspection:
-// a save fired right after page load can POST the pre-edit value. Waiting for
-// network idle after each load/reload sidesteps it deterministically in tests,
-// but a real user typing fast on a slow connection could still hit this.
+// FIXED (see final report): Governance.tsx's data-loading useEffect now has
+// a mount-guard (`let active = true; ... return () => { active = false; }`),
+// so React.StrictMode's dev-mode double-invoke can no longer let a stale
+// fetch overwrite an in-progress edit — only the latest effect invocation's
+// fetch is ever allowed to call setFormData. See the dedicated regression
+// test below, which edits and saves with no settling wait at all.
 const gotoGovernance = async (page: any) => {
   await page.goto('/governance');
   await expect(page.getByRole('heading', { name: 'Corporate Governance' })).toBeVisible();
@@ -43,13 +41,27 @@ const saveAndAcceptAlert = async (page: any) => {
   await dialog.accept();
 };
 
+test('FIXED: an edit made immediately after navigation (no settling wait) is not lost to the StrictMode double-fetch', async ({ page }) => {
+  // Deliberately does NOT use gotoGovernance()'s networkidle wait — this is
+  // exactly the race window the bug used to occupy.
+  await page.goto('/governance');
+  await expect(page.getByRole('heading', { name: 'Corporate Governance' })).toBeVisible();
+
+  const value = `E2E immediate-edit ${Date.now()}`;
+  await page.locator('input[name="gov_committee_name"]').fill(value);
+  await saveAndAcceptAlert(page);
+
+  const gov = await api.getGovernance('2025');
+  expect(gov.gov_committee_name).toBe(value);
+});
+
 test('Sustainability Committee Name persists', async ({ page }) => {
   const value = `E2E Committee ${Date.now()}`;
   await page.locator('input[name="gov_committee_name"]').fill(value);
   await saveAndAcceptAlert(page);
 
   await page.reload();
-  await page.waitForLoadState('networkidle'); // let StrictMode's duplicate dev-mode fetch settle (see comment above)
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('input[name="gov_committee_name"]')).toHaveValue(value);
 
   const gov = await api.getGovernance('2025');
@@ -67,7 +79,7 @@ test('Board Oversight Description is persisted wrapped in <p> tags (existing beh
 
   // The page strips tags back out for display, so the textarea should show plain text on reload.
   await page.reload();
-  await page.waitForLoadState('networkidle'); // let StrictMode's duplicate dev-mode fetch settle (see comment above)
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('textarea').nth(0)).toHaveValue(value);
 });
 
@@ -76,7 +88,7 @@ test('ERM Integration Status select persists', async ({ page }) => {
   await saveAndAcceptAlert(page);
 
   await page.reload();
-  await page.waitForLoadState('networkidle'); // let StrictMode's duplicate dev-mode fetch settle (see comment above)
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('select[name="risk_erm_integration_status"]')).toHaveValue('Partially Integrated');
   const gov = await api.getGovernance('2025');
   expect(gov.risk_erm_integration_status).toBe('Partially Integrated');
@@ -88,7 +100,7 @@ test('Climate Finance numeric fields persist and accept negative values without 
   await saveAndAcceptAlert(page);
 
   await page.reload();
-  await page.waitForLoadState('networkidle'); // let StrictMode's duplicate dev-mode fetch settle (see comment above)
+  await page.waitForLoadState('networkidle');
   await expect(page.locator('input[name="climate_transition_risk_rm"]')).toHaveValue('150000');
   await expect(page.locator('input[name="climate_physical_risk_rm"]')).toHaveValue('-500');
 
@@ -101,7 +113,7 @@ test('clearing a numeric field saves as 0, not NaN', async ({ page }) => {
   await page.locator('input[name="climate_capex_rm"]').fill('1000');
   await saveAndAcceptAlert(page);
   await page.reload();
-  await page.waitForLoadState('networkidle'); // let StrictMode's duplicate dev-mode fetch settle (see comment above)
+  await page.waitForLoadState('networkidle');
 
   await page.locator('input[name="climate_capex_rm"]').fill('');
   await saveAndAcceptAlert(page);

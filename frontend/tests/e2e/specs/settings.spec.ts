@@ -21,9 +21,9 @@ test.afterAll(async () => {
   await api.saveSettings(originalSettings);
 });
 
-// Same StrictMode double-fetch race as Governance.tsx (see governance.spec.ts) —
-// Settings.tsx's load useEffect has the identical no-guard pattern. Wait for
-// network idle so both dev-mode duplicate fetches resolve before interacting.
+// FIXED: same StrictMode double-fetch race as Governance.tsx (see
+// governance.spec.ts) — Settings.tsx's load useEffect now has the identical
+// mount-guard fix.
 test.beforeEach(async ({ page }) => {
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: 'Settings & Admin' })).toBeVisible();
@@ -39,6 +39,17 @@ const saveAndAcceptAlert = async (page: any) => {
   const dialog = await dialogPromise;
   await dialog.accept();
 };
+
+test('FIXED: an edit made immediately after navigation (no settling wait) is not lost to the StrictMode double-fetch', async ({ page }) => {
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { name: 'Settings & Admin' })).toBeVisible();
+
+  await page.locator('input[name="internal_carbon_price"]').fill('42.5');
+  await saveAndAcceptAlert(page);
+
+  const settings = await api.getSettings();
+  expect(settings.internal_carbon_price).toBe(42.5);
+});
 
 test('Internal Carbon Price persists, including a decimal value', async ({ page }) => {
   await page.locator('input[name="internal_carbon_price"]').fill('87.5');

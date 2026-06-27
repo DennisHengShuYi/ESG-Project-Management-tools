@@ -25,6 +25,17 @@ const checkEventOwnership = async (eventId, organisationId) => {
   return data.organisation_id === organisationId;
 };
 
+// `Number(flat.total_headcount) || (permanent + contract)` treats an
+// explicit 0 the same as "not provided" (0 is falsy), so a user clearing
+// headcount to 0 always got silently overridden. Use presence, not truthiness.
+const resolveTotalHeadcount = (flat, permanent, contract) => {
+  const explicit = flat.total_headcount;
+  if (explicit !== undefined && explicit !== null && explicit !== '') {
+    return Number(explicit) || 0;
+  }
+  return permanent + contract;
+};
+
 // ── Public Authentication Routes ─────────────────────────────────
 
 // Fetch list of organisations
@@ -242,7 +253,12 @@ app.post('/api/events', requireAuth, async (req, res) => {
 
     const fields = {};
     CORE_FIELDS.forEach(k => { if (eventData[k] !== undefined) fields[k] = eventData[k]; });
-    
+
+    // Postgres rejects '' for a `date` column ("invalid input syntax for type
+    // date"); the create/edit form always sends these keys even when blank.
+    if (fields.event_start_date === '') fields.event_start_date = null;
+    if (fields.event_end_date === '') fields.event_end_date = null;
+
     // Bind to user's organization
     fields.organisation_id = req.user.organisation_id;
 
@@ -372,7 +388,7 @@ app.post('/api/events/:id/bulk-update', requireAuth, async (req, res) => {
       lti_count:                  Number(flat.lti_count)                || 0,
       total_hours_worked:         Number(flat.man_hours_actual)         || 0,
       safety_training_headcount:  Number(flat.safety_trained_count)     || 0,
-      total_headcount:            Number(flat.total_headcount)          || (permanent + contract),
+      total_headcount:            resolveTotalHeadcount(flat, permanent, contract),
       contract_temp_count:        contract,
       human_rights_complaints:    Number(flat.hr_complaints_count)      || 0,
       training_hours_total:       Number(flat.training_hours_total)     || 0,
@@ -489,7 +505,7 @@ app.post('/api/events/:id/health-safety', requireAuth, async (req, res) => {
       lti_count:                  Number(flat.lti_count)             || 0,
       total_hours_worked:         Number(flat.man_hours_actual)      || 0,
       safety_training_headcount:  Number(flat.safety_trained_count)  || 0,
-      total_headcount:            Number(flat.total_headcount)       || (permanent + contract),
+      total_headcount:            resolveTotalHeadcount(flat, permanent, contract),
       contract_temp_count:        contract,
       human_rights_complaints:    Number(flat.hr_complaints_count)   || 0,
       training_hours_total:       Number(flat.training_hours_total)  || 0,
@@ -575,7 +591,12 @@ app.post('/api/events/:id/timeline', requireAuth, async (req, res) => {
       event_id:           req.params.id,
       project_start_date: flat.project_start_date || null,
       planned_end_date:   flat.project_end_planned || null,
-      actual_end_date:    flat.event_end_date      || null,
+      // timeline_actual_end_date is the UI's field key; event_end_date is kept
+      // only as a fallback for older callers that used the original key name.
+      // `||`, not `??` — EditableModule's draft defaults an untouched field to
+      // '' (not null/undefined), and '' must also fall through to the next
+      // candidate or Postgres rejects it ("invalid input syntax for type date").
+      actual_end_date:    flat.timeline_actual_end_date || flat.event_end_date || null,
       tasks_total:        Number(flat.tasks_total)    || 0,
       tasks_on_time:      Number(flat.tasks_on_time)  || 0,
       team_size:          Number(flat.team_size_total) || 0,
@@ -671,17 +692,23 @@ app.post('/api/governance', requireAuth, async (req, res) => {
     const baseHr       = { organisation_id: req.user.organisation_id, reporting_year: year, ...hr };
     const baseClimate  = { organisation_id: req.user.organisation_id, reporting_year: year, ...climate };
 
-    await Promise.all([
+    const results = await Promise.all([
       Object.keys(strategy).length > 0
         ? supabase.from('module_strategy_risk').upsert(baseStrategy, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(),
+        : Promise.resolve(null),
       Object.keys(hr).length > 0
         ? supabase.from('module_hr_diversity').upsert(baseHr, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(),
+        : Promise.resolve(null),
       Object.keys(climate).length > 0
         ? supabase.from('module_climate_finance').upsert(baseClimate, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(),
+        : Promise.resolve(null),
     ]);
+
+    // supabase-js upsert() resolves with {data, error} rather than throwing —
+    // without this check, a failed upsert (e.g. an unrecognised column) was
+    // silently swallowed and the frontend always reported "saved successfully".
+    const failed = results.filter(r => r && r.error);
+    if (failed.length > 0) throw new Error(failed.map(r => r.error.message).join('; '));
 
     res.json({ success: true });
   } catch (err) {

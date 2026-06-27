@@ -6,6 +6,11 @@ test('page loads, summary chip counts add up to total tracked, no console errors
   const errors = collectConsoleErrors(page);
   await page.goto('/sdg');
   await expect(page.getByRole('heading', { name: 'UN SDG Impact Dashboard' })).toBeVisible();
+  // The 4 chip reads below are separate, non-atomic .innerText() calls. If
+  // the async events/corp fetch resolves and re-renders mid-read, the reads
+  // can straddle the transition and pick up an inconsistent mix of values.
+  // Wait for the data to settle first so all 4 reads see the same render.
+  await page.waitForLoadState('networkidle');
 
   const achieved = await page.locator('.chip-achieved').innerText();
   const partial = await page.locator('.chip-partial').innerText();

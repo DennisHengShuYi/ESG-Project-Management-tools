@@ -3,6 +3,7 @@ import { getEventsFull, getCorporateGovernance, saveCorporateGovernance } from '
 import { Cloud, Zap, ShieldAlert, HeartHandshake, Landmark, Users, DollarSign, Calendar, Flame } from 'lucide-react';
 import EditableModule from '../components/EditableModule';
 import MetricSparkGrid from '../components/MetricSparkGrid';
+import { useReportingYear } from '../hooks/useReportingYear';
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
 } from 'recharts';
@@ -44,19 +45,11 @@ const agg = (key, label, unit) => ({ key, label, unit, readOnly: true });
 /* ═══════════════════════════════════════════════════════════════════
    COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
-const CURRENT_YEAR = new Date().getFullYear();
-
 const Dashboard = () => {
   const [events, setEvents]   = useState([]);
   const [corp, setCorp]       = useState<any>({});
-  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events);
   const [activeTab, setActiveTab]       = useState('green-ops');
-
-  /* Years actually present in event data, newest first, current year always included */
-  const availableYears = Array.from(new Set([
-    String(CURRENT_YEAR),
-    ...events.map((e: any) => e.reporting_year).filter(Boolean),
-  ])).sort((a, b) => Number(b) - Number(a));
 
   useEffect(() => {
     const load = async () => {

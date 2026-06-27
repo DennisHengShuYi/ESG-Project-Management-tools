@@ -1,29 +1,33 @@
 import { useState, useEffect } from 'react';
-import { getEvents } from '../utils/db';
+import { getEventsFull } from '../utils/db';
 import { FileText, Download, CheckCircle, XCircle } from 'lucide-react';
+import { useReportingYear } from '../hooks/useReportingYear';
 import './Reporting.css';
 
-const CURRENT_YEAR = new Date().getFullYear();
+// One representative metric per Bursa Malaysia sustainability pillar this
+// report aggregates (Green Ops / Health & Safety / Procurement / Financial).
+// "Complete" means every pillar has *some* reported data, not just that an
+// event row exists for the year — an event with everything left at 0 used to
+// pass this check.
+const MANDATORY_PILLAR_FIELDS = ['total_energy_mwh', 'man_hours_actual', 'procurement_total_rm', 'budget_actual'];
 
 const Reporting = () => {
-  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
   const [events, setEvents] = useState([]);
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events);
 
   useEffect(() => {
+    let active = true;
     const load = async () => {
-      setEvents(await getEvents());
+      const data = await getEventsFull();
+      if (active) setEvents(data);
     };
     load();
+    return () => { active = false; };
   }, []);
 
-  /* Years actually present in event data, newest first, current year always included */
-  const availableYears = Array.from(new Set([
-    String(CURRENT_YEAR),
-    ...events.map((e: any) => e.reporting_year).filter(Boolean),
-  ])).sort((a, b) => Number(b) - Number(a));
-
   const currentEvents = events.filter(e => e.reporting_year === selectedYear);
-  const isComplete = currentEvents.length > 0; // Simplified completeness check
+  const isComplete = currentEvents.length > 0
+    && MANDATORY_PILLAR_FIELDS.every(field => currentEvents.some((e: any) => Number(e[field]) > 0));
 
   return (
     <div className="reporting-container animate-fade-in">

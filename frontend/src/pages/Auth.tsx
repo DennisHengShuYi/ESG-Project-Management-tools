@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/GG Logo Transparent.png';
 import './Auth.css';
@@ -15,6 +15,16 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // db.ts's apiFetch sets this when a 401 clears an expired/invalid token
+  // and bounces here — show it once, then clear it so it doesn't reappear.
+  useEffect(() => {
+    const authMessage = sessionStorage.getItem('auth_message');
+    if (authMessage) {
+      setError(authMessage);
+      sessionStorage.removeItem('auth_message');
+    }
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +130,10 @@ const Auth = () => {
           </button>
         </div>
 
+        {/* Inputs intentionally have no `required` attribute — native browser
+            validation would block the submit handler before handleAuth's own
+            checks ever ran, replacing this form's styled error alerts with an
+            inconsistent native tooltip. */}
         <form onSubmit={handleAuth} className="auth-form">
           {error && <div className="auth-alert auth-alert-error">{error}</div>}
           {message && <div className="auth-alert auth-alert-success">{message}</div>}
@@ -132,7 +146,6 @@ const Auth = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@company.com"
-              required
               className="auth-input"
             />
           </div>
@@ -145,7 +158,6 @@ const Auth = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              required
               className="auth-input"
             />
           </div>
@@ -160,7 +172,6 @@ const Auth = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  required
                   className="auth-input"
                 />
               </div>
@@ -173,7 +184,6 @@ const Auth = () => {
                   value={orgId}
                   onChange={(e) => setOrgId(e.target.value)}
                   placeholder="Enter organization UUID"
-                  required
                   className="auth-input"
                 />
               </div>

@@ -12,23 +12,55 @@ test.afterAll(async () => {
   await Promise.all(createdEmails.map(deleteUserByEmail));
 });
 
+/** A structurally-valid (3-segment, decodable payload) but unsigned JWT —
+ * enough for AuthContext's decodeToken() to optimistically accept it
+ * client-side, while the backend's jwt.verify() correctly rejects it. */
+function buildFakeJWT(payload: object): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.fakesignature`;
+}
+
 test('unauthenticated user sees the Sign In form', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Green Generation' })).toBeVisible();
   await expect(page.locator('button.auth-tab', { hasText: 'Sign In' })).toHaveClass(/active/);
 });
 
-test('FINDING: submitting with empty fields is blocked by native HTML5 validation, not the custom JS message', async ({ page }) => {
-  // Auth.tsx's handleAuth has `if (!email || !password) setError('Please fill in
-  // all fields.')`, but both inputs also have a plain `required` attribute. The
-  // browser's native constraint validation intercepts an empty-required-field
-  // submit before the onSubmit handler ever runs, so this custom message is
-  // unreachable via the UI for a fully-empty form. Asserting the actual behavior.
+test('FIXED: an invalid/expired token auto-logs-out with a clear message instead of failing silently', async ({ page }) => {
+  // Regression test: db.ts had no 401 handling at all — AuthContext's
+  // decodeToken() only parses the JWT payload, it never validates the
+  // signature or expiry, so the UI optimistically rendered the Dashboard
+  // shell while every API call failed silently in the console with no
+  // indication to the user why nothing was loading.
+  const fakeToken = buildFakeJWT({
+    id: 'fake-id',
+    email: 'fake@example.com',
+    organisation_id: '00000000-0000-0000-0000-000000000001',
+  });
+  // Set the token via evaluate (one-time) rather than addInitScript, which
+  // re-injects on every navigation — including the one this fix itself
+  // triggers, which would re-plant the fake token right after it's cleared
+  // and loop forever instead of settling on the logged-out state.
+  await page.goto('/');
+  await page.evaluate((t) => window.localStorage.setItem('token', t), fakeToken);
+  await page.reload();
+
+  await expect(page.getByText('Your session has expired. Please log in again.')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('button.auth-tab', { hasText: 'Sign In' })).toBeVisible();
+  const token = await page.evaluate(() => window.localStorage.getItem('token'));
+  expect(token).toBeNull();
+});
+
+test('FIXED: empty fields now show the custom JS validation message', async ({ page }) => {
+  // Regression test: the inputs used to have a plain `required` attribute,
+  // and native browser validation intercepted submission before handleAuth's
+  // own `if (!email || !password)` check ever ran, making this message
+  // unreachable. `required` has been removed so the custom, styled error
+  // alert is what the user actually sees.
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign In', exact: true }).last().click();
-  const emailValid = await page.locator('#email').evaluate((el: HTMLInputElement) => el.validity.valid);
-  expect(emailValid).toBe(false);
-  await expect(page.getByText('Please fill in all fields.')).not.toBeVisible();
+  await expect(page.getByText('Please fill in all fields.')).toBeVisible();
 });
 
 test('short password is rejected client-side', async ({ page }) => {
@@ -58,19 +90,15 @@ test('register form: password mismatch is rejected', async ({ page }) => {
   await expect(page.getByText('Passwords do not match.')).toBeVisible();
 });
 
-test('FINDING: missing org code is also blocked by native HTML5 validation, not the custom JS message', async ({ page }) => {
-  // Same root cause as the empty-fields test above: orgId's `required`
-  // attribute triggers native validation before handleAuth's own
-  // `if (!orgId.trim())` check ever gets a chance to run.
+test('FIXED: missing org code now shows the custom JS validation message', async ({ page }) => {
+  // Regression test, same root cause as the empty-fields test above.
   await page.goto('/');
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await page.getByLabel('Email Address').fill('noorg-e2e@example.com');
   await page.getByLabel('Password', { exact: true }).fill('password123');
   await page.getByLabel('Confirm Password').fill('password123');
   await page.getByRole('button', { name: 'Create Account' }).click();
-  const orgIdValid = await page.locator('#orgId').evaluate((el: HTMLInputElement) => el.validity.valid);
-  expect(orgIdValid).toBe(false);
-  await expect(page.getByText('Organization Code / ID is required.')).not.toBeVisible();
+  await expect(page.getByText('Organization Code / ID is required.')).toBeVisible();
 });
 
 test('register form: invalid org code shows server error', async ({ page }) => {

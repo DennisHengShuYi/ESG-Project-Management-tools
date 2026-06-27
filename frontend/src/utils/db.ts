@@ -16,10 +16,24 @@ const getHeaders = async (isGet = false) => {
   return headers;
 };
 
+/** Wraps fetch with centralized 401 handling. Without this, an expired or
+ * invalid token left every API call failing silently (console-only errors),
+ * with the UI stuck showing an empty/broken page and no indication why. */
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    sessionStorage.setItem('auth_message', 'Your session has expired. Please log in again.');
+    window.location.href = '/';
+    throw new Error('Unauthorized — redirecting to login.');
+  }
+  return res;
+};
+
 export const getEvents = async () => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/events`, {
+    const res = await apiFetch(`${API_URL}/api/events`, {
       method: 'GET',
       headers,
     });
@@ -34,7 +48,7 @@ export const getEvents = async () => {
 export const getEventsFull = async () => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/events/full`, {
+    const res = await apiFetch(`${API_URL}/api/events/full`, {
       method: 'GET',
       headers,
     });
@@ -49,7 +63,7 @@ export const getEventsFull = async () => {
 export const getEventDetail = async (id: string) => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/events/${id}`, {
+    const res = await apiFetch(`${API_URL}/api/events/${id}`, {
       method: 'GET',
       headers,
     });
@@ -64,7 +78,7 @@ export const getEventDetail = async (id: string) => {
 export const saveEvent = async (eventData: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events`, {
+    const res = await apiFetch(`${API_URL}/api/events`, {
       method: 'POST',
       headers,
       body: JSON.stringify(eventData),
@@ -80,7 +94,7 @@ export const saveEvent = async (eventData: any) => {
 export const deleteEvent = async (id: string) => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/events/${id}`, {
+    const res = await apiFetch(`${API_URL}/api/events/${id}`, {
       method: 'DELETE',
       headers,
     });
@@ -94,7 +108,7 @@ export const deleteEvent = async (id: string) => {
 export const saveGreenOps = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/green-ops`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/green-ops`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -109,7 +123,7 @@ export const saveGreenOps = async (eventId: string, flat: any) => {
 export const saveHealthSafety = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/health-safety`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/health-safety`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -124,7 +138,7 @@ export const saveHealthSafety = async (eventId: string, flat: any) => {
 export const saveProcurement = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/procurement`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/procurement`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -139,7 +153,7 @@ export const saveProcurement = async (eventId: string, flat: any) => {
 export const saveEventFinancials = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/financials`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/financials`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -154,7 +168,7 @@ export const saveEventFinancials = async (eventId: string, flat: any) => {
 export const saveEventTimeline = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/timeline`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/timeline`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -169,7 +183,7 @@ export const saveEventTimeline = async (eventId: string, flat: any) => {
 export const saveEventAttendance = async (eventId: string, flat: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/events/${eventId}/attendance`, {
+    const res = await apiFetch(`${API_URL}/api/events/${eventId}/attendance`, {
       method: 'POST',
       headers,
       body: JSON.stringify(flat),
@@ -184,7 +198,7 @@ export const saveEventAttendance = async (eventId: string, flat: any) => {
 export const getCorporateGovernance = async (year = '2025') => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/governance?year=${year}`, {
+    const res = await apiFetch(`${API_URL}/api/governance?year=${year}`, {
       method: 'GET',
       headers,
     });
@@ -196,25 +210,27 @@ export const getCorporateGovernance = async (year = '2025') => {
   }
 };
 
-export const saveCorporateGovernance = async (govData: any, year = '2025') => {
+export const saveCorporateGovernance = async (govData: any, year = '2025'): Promise<{ success: boolean; error?: string }> => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/governance?year=${year}`, {
+    const res = await apiFetch(`${API_URL}/api/governance?year=${year}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(govData),
     });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
-  } catch (error) {
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || `HTTP error! status: ${res.status}` };
+    return { success: true };
+  } catch (error: any) {
     console.error('saveCorporateGovernance error:', error);
+    return { success: false, error: error.message || 'Failed to save.' };
   }
 };
 
 export const getSettings = async () => {
   try {
     const headers = await getHeaders(true);
-    const res = await fetch(`${API_URL}/api/settings`, {
+    const res = await apiFetch(`${API_URL}/api/settings`, {
       method: 'GET',
       headers,
     });
@@ -229,7 +245,7 @@ export const getSettings = async () => {
 export const saveSettings = async (settingsData: any) => {
   try {
     const headers = await getHeaders();
-    const res = await fetch(`${API_URL}/api/settings`, {
+    const res = await apiFetch(`${API_URL}/api/settings`, {
       method: 'POST',
       headers,
       body: JSON.stringify(settingsData),
@@ -377,7 +393,7 @@ export const uploadEventCsv = async (eventId: string, file: File): Promise<{ suc
         }
 
         const headers = await getHeaders();
-        const res = await fetch(`${API_URL}/api/events/${eventId}/bulk-update`, {
+        const res = await apiFetch(`${API_URL}/api/events/${eventId}/bulk-update`, {
           method: 'POST',
           headers,
           body: JSON.stringify(flat),

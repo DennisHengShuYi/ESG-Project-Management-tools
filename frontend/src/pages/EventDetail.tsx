@@ -8,6 +8,7 @@ import {
 } from '../utils/db';
 import { ArrowLeft, Cloud, ShieldAlert, HeartHandshake, DollarSign, Clock, Users, Download, Upload } from 'lucide-react';
 import EditableModule from '../components/EditableModule';
+import { KpiCard, DonutChart, BarChartPanel, GaugeBar, ChartEmpty, CHART_COLORS as C } from '../components/charts';
 import './EventDetail.css';
 
 /* ── Field definitions per module ─────────────────────────────────── */
@@ -147,6 +148,257 @@ const normaliseEvent = (raw: any) => ({
   tasks_on_time:            raw.tasks_on_time            ?? null,
 });
 
+/* ── Per-module chart panels (single-event scale: no trend lines — a
+   single event has a result, not a trend) ──────────────────────────── */
+const renderGreenOpsCharts = (event: any) => {
+  const totalEnergy = Number(event.total_energy_mwh) || 0;
+  const renewable = Number(event.renewable_energy_mwh) || 0;
+  const renewableData = totalEnergy > 0 ? [
+    { name: 'Renewable', value: +renewable.toFixed(2), fill: C.green },
+    { name: 'Non-Renewable', value: +Math.max(0, totalEnergy - renewable).toFixed(2), fill: C.blue },
+  ] : [];
+
+  const emissionsRow = {
+    name: 'Emissions',
+    'Scope 1': +(Number(event.scope1_tco2e) || 0).toFixed(2),
+    'Scope 2': +(Number(event.scope2_lb_tco2e) || 0).toFixed(2),
+    'Scope 3': +(Number(event.scope3_tco2e) || 0).toFixed(2),
+  };
+  const hasEmissions = emissionsRow['Scope 1'] > 0 || emissionsRow['Scope 2'] > 0 || emissionsRow['Scope 3'] > 0;
+
+  const wasteRow = {
+    name: 'Waste',
+    'Hazardous': +((Number(event.waste_hazardous_kg) || 0) / 1000).toFixed(3),
+    'Non-Hazardous': +((Number(event.waste_nonhazardous_kg) || 0) / 1000).toFixed(3),
+  };
+  const hasWaste = wasteRow['Hazardous'] > 0 || wasteRow['Non-Hazardous'] > 0;
+
+  return (
+    <>
+      <div className="kpi-grid">
+        <KpiCard label="Energy Consumption" value={`${totalEnergy.toLocaleString()} MWh`} color={C.amber} />
+        <KpiCard label="Water Consumption" value={`${(Number(event.total_water_m3) || 0).toLocaleString()} m³`} color={C.blue} />
+        <KpiCard label="Surplus Food Recovery" value={`${(Number(event.food_recovery_kg) || 0).toLocaleString()} kg`} color={C.green} />
+      </div>
+      <div className="charts-row">
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Scope 1 / 2 / 3 Emissions (tCO₂e)</h4>
+          {hasEmissions ? (
+            <BarChartPanel
+              data={[emissionsRow]} stacked layout="vertical" tooltipSuffix=" tCO₂e"
+              series={[
+                { dataKey: 'Scope 1', fill: C.red, stackId: 'a' },
+                { dataKey: 'Scope 2', fill: C.amber, stackId: 'a' },
+                { dataKey: 'Scope 3', fill: C.blue, stackId: 'a' },
+              ]}
+            />
+          ) : <ChartEmpty message="No emissions data recorded" />}
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Hazardous vs Non-Hazardous Waste (Tonnes)</h4>
+          {hasWaste ? (
+            <BarChartPanel
+              data={[wasteRow]} stacked layout="vertical" tooltipSuffix=" t"
+              series={[
+                { dataKey: 'Hazardous', fill: C.amber, stackId: 'a' },
+                { dataKey: 'Non-Hazardous', fill: C.blue, stackId: 'a' },
+              ]}
+            />
+          ) : <ChartEmpty message="No waste data recorded" />}
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Renewable Energy Share</h4>
+          <DonutChart data={renewableData} valueSuffix=" MWh" emptyMessage="No energy data recorded" />
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Waste Diversion Rate (toward 100% target)</h4>
+          <GaugeBar pct={Number(event.waste_diverted_pct) || 0} color={C.green} />
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Sustainable Catering Rate (toward 100% target)</h4>
+          <GaugeBar pct={Number(event.sustainable_catering_pct) || 0} color={C.teal} />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const renderHealthCharts = (event: any) => {
+  const permanent = Number(event.staff_permanent_count) || 0;
+  const contractor = Number(event.staff_contractor_count) || 0;
+  const staffData = (permanent + contractor) > 0 ? [
+    { name: 'Permanent', value: permanent, fill: C.blue },
+    { name: 'Contract/Temp', value: contractor, fill: C.purple },
+  ] : [];
+
+  const totalStaff = (permanent + contractor) || Number(event.total_headcount) || 0;
+  const safetyPct = totalStaff > 0 ? ((Number(event.safety_trained_count) || 0) / totalStaff) * 100 : 0;
+
+  return (
+    <>
+      <div className="kpi-grid">
+        <KpiCard label="Work-Related Fatalities" value={Number(event.fatalities_count) || 0} severity />
+        <KpiCard label="LTIR" value={(Number(event.ltir) || 0).toFixed(4)} color={C.red} />
+        <KpiCard label="Human Rights Complaints" value={Number(event.hr_complaints_count) || 0} severity />
+        <KpiCard label="Employee Training Hours" value={(Number(event.training_hours_total) || 0).toLocaleString()} color={C.teal} />
+        <KpiCard label="Employee Turnover Headcount" value={Number(event.turnover_count) || 0} color={C.amber} />
+      </div>
+      <div className="charts-row">
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Safety Training Coverage (toward 100% target)</h4>
+          <GaugeBar pct={safetyPct} color={C.green} />
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Contract & Temp vs Permanent Staff</h4>
+          <DonutChart data={staffData} emptyMessage="No headcount data recorded" />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const renderProcurementCharts = (event: any) => {
+  const total = Number(event.procurement_total_rm) || 0;
+  const local = Number(event.local_supplier_spend_rm) || 0;
+  const supplierData = total > 0 ? [
+    { name: 'Local', value: +local.toFixed(2), fill: C.green },
+    { name: 'Non-Local', value: +Math.max(0, total - local).toFixed(2), fill: C.blue },
+  ] : [];
+
+  return (
+    <>
+      <div className="kpi-grid">
+        <KpiCard label="Community Investment" value={`RM ${(Number(event.community_invest_rm) || 0).toLocaleString()}`} color={C.green} />
+        <KpiCard label="Community Beneficiaries" value={Number(event.community_beneficiaries) || 0} color={C.blue} />
+        <KpiCard label="Substantiated Privacy Breaches" value={Number(event.data_breach_complaints) || 0} severity />
+      </div>
+      <div className="charts-row">
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Local Supplier Spend (RM)</h4>
+          <DonutChart data={supplierData} valueSuffix=" RM" emptyMessage="No procurement data recorded" />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const renderFinancialCharts = (event: any) => {
+  const budgetEstimated = Number(event.budget_estimated) || 0;
+  const budgetActual = Number(event.budget_actual) || 0;
+  const revenueEstimated = Number(event.revenue_estimated) || 0;
+  const revenueActual = Number(event.revenue_actual) || 0;
+  const greenSpend = Number(event.green_spend_rm) || 0;
+
+  const budgetVariance = budgetEstimated - budgetActual;
+  const utilisation = budgetEstimated ? ((budgetActual / budgetEstimated) * 100).toFixed(1) : '0';
+  const netProfit = revenueActual - budgetActual;
+  const roi = budgetActual ? ((netProfit / budgetActual) * 100).toFixed(1) : '0';
+
+  const greenSpendData = budgetActual > 0 ? [
+    { name: 'Green Spend', value: +greenSpend.toFixed(2), fill: C.green },
+    { name: 'Other Spend', value: +Math.max(0, budgetActual - greenSpend).toFixed(2), fill: C.blue },
+  ] : [];
+
+  return (
+    <>
+      <div className="kpi-grid">
+        <KpiCard
+          label="Budget Variance & Utilisation"
+          value={`RM ${budgetVariance.toLocaleString()} (${utilisation}% utilised)`}
+          color={budgetVariance >= 0 ? C.green : C.red}
+        />
+        <KpiCard
+          label="Net Profit / Loss & ROI"
+          value={`RM ${Math.abs(netProfit).toLocaleString()} (${roi}% ROI)`}
+          color={netProfit >= 0 ? C.green : C.red}
+        />
+      </div>
+      <div className="charts-row">
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Estimated Budget vs Actual Cost (RM)</h4>
+          <BarChartPanel
+            data={[{ name: 'Budget', Estimated: budgetEstimated, Actual: budgetActual }]}
+            tooltipPrefix="RM "
+            series={[{ dataKey: 'Estimated', fill: C.blue }, { dataKey: 'Actual', fill: C.amber }]}
+          />
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Estimated vs Actual Revenue (RM)</h4>
+          <BarChartPanel
+            data={[{ name: 'Revenue', Estimated: revenueEstimated, Actual: revenueActual }]}
+            tooltipPrefix="RM "
+            series={[{ dataKey: 'Estimated', fill: C.blue }, { dataKey: 'Actual', fill: C.green }]}
+          />
+        </div>
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">Green Spend Ratio (RM)</h4>
+          <DonutChart data={greenSpendData} valueSuffix=" RM" emptyMessage="No spend data recorded" />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const renderTimelineCharts = (event: any) => {
+  const tasksTotal = Number(event.tasks_total) || 0;
+  const tasksOnTime = Number(event.tasks_on_time) || 0;
+  const onTimePct = tasksTotal > 0 ? (tasksOnTime / tasksTotal) * 100 : 0;
+
+  let scheduleVarianceLabel = '—';
+  if (event.project_end_planned && event.timeline_actual_end_date) {
+    const diff = Math.round(
+      (new Date(event.project_end_planned).getTime() - new Date(event.timeline_actual_end_date).getTime()) / 86400000
+    );
+    scheduleVarianceLabel = diff >= 0 ? `+${diff} days (on time)` : `${diff} days (delayed)`;
+  }
+
+  return (
+    <>
+      <div className="kpi-grid">
+        <KpiCard label="Schedule Variance" value={scheduleVarianceLabel} color={C.amber} />
+        <KpiCard label="Total Team Size" value={Number(event.team_size_total) || 0} color={C.blue} />
+      </div>
+      <div className="charts-row">
+        <div className="chart-card glass-card">
+          <h4 className="chart-title">On-Time Delivery Rate (toward 100% target)</h4>
+          <GaugeBar pct={onTimePct} color={C.green} />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const renderAttendanceCharts = (event: any) => {
+  const expected = Number(event.expected_attendance) || 0;
+  const actual = Number(event.actual_attendance) || 0;
+  const attendancePct = expected > 0 ? (actual / expected) * 100 : 0;
+
+  return (
+    <div className="charts-row">
+      <div className="chart-card glass-card">
+        <h4 className="chart-title">Expected vs Actual Attendance</h4>
+        <BarChartPanel
+          data={[{ name: 'Attendance', Expected: expected, Actual: actual }]}
+          series={[{ dataKey: 'Expected', fill: C.blue }, { dataKey: 'Actual', fill: C.green }]}
+        />
+      </div>
+      <div className="chart-card glass-card">
+        <h4 className="chart-title">Attendance Rate (toward 100% target)</h4>
+        <GaugeBar pct={attendancePct} color={C.teal} />
+      </div>
+    </div>
+  );
+};
+
+const MODULE_CHARTS = {
+  'green-ops':     renderGreenOpsCharts,
+  'health-safety': renderHealthCharts,
+  'procurement':   renderProcurementCharts,
+  'financial':     renderFinancialCharts,
+  'timeline':      renderTimelineCharts,
+  'attendance':    renderAttendanceCharts,
+};
+
 /* ── Component ─────────────────────────────────────────────────────── */
 const EventDetail = () => {
   const { id } = useParams();
@@ -278,9 +530,9 @@ const EventDetail = () => {
       </div>
 
       {currentModule && (
-        <div className="mt-4">
+        <div className="mt-4 event-module-content" key={`${activeModule}-${dataVersion}`}>
+          {MODULE_CHARTS[activeModule]?.(event)}
           <EditableModule
-            key={`${activeModule}-${dataVersion}`}
             title={currentModule.label}
             icon={<ModuleIcon className={currentModule.colorClass} />}
             fields={currentModule.fields}

@@ -130,25 +130,22 @@ test.describe('Health & Safety calculations', () => {
     expect(detail.contractor_pct).toBe(30);
   });
 
-  test('EDGE CASE: explicit total_headcount=0 is silently overridden by a fallback derived from stale view data', async ({ page }) => {
-    // backend/src/server.js health-safety route: `Number(flat.total_headcount) || (permanent + contract)`.
-    // `0 || X` evaluates to X in JS, so an explicit 0 can never survive if permanent+contract is nonzero.
-    // Worse: `permanent` here isn't freshly entered — EventDetail.tsx's handleModuleSave does
-    // `merged = {...event, ...updatedFields}`, and `event.staff_permanent_count` is a VIEW-DERIVED
-    // value (`greatest(0, total_headcount - contract_temp_count)` in events_flat) carried over from
-    // whatever the PREVIOUS save left behind, so the exact fallback number depends on prior test/edit
-    // history rather than anything entered in this save. Asserting the qualitative finding (the
-    // explicit 0 never survives) rather than predicting the exact compounded number.
+  test('FIXED: explicit total_headcount=0 is respected, not overridden by the permanent+contract fallback', async ({ page }) => {
+    // Regression test: backend/src/server.js used `Number(flat.total_headcount) || (permanent + contract)`,
+    // and `0 || X` evaluates to X in JS, so an explicit 0 could never survive. The route now uses
+    // resolveTotalHeadcount(), which checks presence (not truthiness) before falling back.
     await gotoTab(page, 'Health, Safety & Labour');
     await startEdit(page);
     await fillEditField(page, 'Contract & Temp Staff Count', '40');
     await fillEditField(page, 'Total Headcount (all staff)', '0');
     await saveEdit(page);
 
-    const detail = await api.getEventDetail(eventId);
-    // NOT 0, despite the user explicitly entering 0 — overridden by (carried-over permanent) + 40.
-    expect(detail.total_headcount).not.toBe(0);
-    expect(detail.total_headcount).toBeGreaterThanOrEqual(40);
+    // saveEdit() already waits for networkidle, but this assertion has shown
+    // an occasional ~100-300ms gap between the save POST responding and a
+    // fresh read reflecting it (under full-suite load specifically — never
+    // reproduced via direct, isolated curl requests). Poll instead of a
+    // one-shot read so a transient propagation delay doesn't fail the test.
+    await expect.poll(async () => (await api.getEventDetail(eventId)).total_headcount).toBe(0);
   });
 });
 
@@ -243,12 +240,11 @@ test.describe('Timeline calculations', () => {
     await expect(metricValue(page, 'On-Time Delivery Rate')).toContainText('80.0%');
   });
 
-  test('BUG: editing "Actual End Date" via Save does not persist the typed value', async ({ page }) => {
-    // backend/src/server.js:578 (`/api/events/:id/timeline` route) sets
-    // `actual_end_date: flat.event_end_date || null` — it reads the wrong
-    // key. The UI field is bound to `timeline_actual_end_date`, which this
-    // route ignores entirely. Compare with the CSV bulk-update route, which
-    // correctly does `flat.timeline_actual_end_date ?? flat.event_end_date`.
+  test('FIXED: editing "Actual End Date" via Save now persists the typed value', async ({ page }) => {
+    // Regression test: backend/src/server.js's `/api/events/:id/timeline` route
+    // used to read `flat.event_end_date` (the wrong key) for actual_end_date,
+    // silently dropping edits made via this UI field (bound to
+    // `timeline_actual_end_date`). Now reads `flat.timeline_actual_end_date ?? flat.event_end_date`.
     await gotoTab(page, 'Timeline & Team');
     await startEdit(page);
     await fillEditField(page, 'Project Start Date', '2026-01-01');
@@ -257,9 +253,9 @@ test.describe('Timeline calculations', () => {
     await saveEdit(page);
 
     const detail = await api.getEventDetail(eventId);
-    expect(detail.project_start_date).toBe('2026-01-01'); // this key DOES map correctly
-    expect(detail.project_end_planned).toBe('2026-06-01'); // this key DOES map correctly
-    expect(detail.timeline_actual_end_date).not.toBe('2026-06-15'); // BUG: silently dropped
+    expect(detail.project_start_date).toBe('2026-01-01');
+    expect(detail.project_end_planned).toBe('2026-06-01');
+    expect(detail.timeline_actual_end_date).toBe('2026-06-15');
   });
 });
 
