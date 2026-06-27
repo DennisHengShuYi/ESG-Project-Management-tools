@@ -106,27 +106,46 @@ const SDGDashboard = () => {
   };
 
   const T = {
-    ltir:            settings.ltir_threshold !== undefined && settings.ltir_threshold !== null ? Number(settings.ltir_threshold) : 0.5,
-    fatalities:      settings.fatalities_threshold !== undefined && settings.fatalities_threshold !== null ? Number(settings.fatalities_threshold) : 0,
-    renewable:       settings.renewable_target_pct !== undefined && settings.renewable_target_pct !== null ? Number(settings.renewable_target_pct) : 30,
-    water:           settings.water_intensity_target_m3 !== undefined && settings.water_intensity_target_m3 !== null ? Number(settings.water_intensity_target_m3) : 200,
-    boardFemale:     settings.board_female_target_pct !== undefined && settings.board_female_target_pct !== null ? Number(settings.board_female_target_pct) : 30,
-    wasteDiv:        settings.waste_diversion_target_pct !== undefined && settings.waste_diversion_target_pct !== null ? Number(settings.waste_diversion_target_pct) : 50,
-    corruptTrain:    settings.corrupt_training_target_pct !== undefined && settings.corrupt_training_target_pct !== null ? Number(settings.corrupt_training_target_pct) : 95,
-    localSupplier:   settings.local_supplier_target_pct !== undefined && settings.local_supplier_target_pct !== null ? Number(settings.local_supplier_target_pct) : 50,
-    communityInvest: settings.community_invest_target_rm !== undefined && settings.community_invest_target_rm !== null ? Number(settings.community_invest_target_rm) : 10000,
-    scope12Target:   settings.scope12_target_tco2e !== undefined && settings.scope12_target_tco2e !== null ? Number(settings.scope12_target_tco2e) : 100,
-    hrComplaints:    settings.hr_complaint_target !== undefined && settings.hr_complaint_target !== null ? Number(settings.hr_complaint_target) : 0,
-    corruptionIncidents: settings.corruption_incident_threshold !== undefined && settings.corruption_incident_threshold !== null ? Number(settings.corruption_incident_threshold) : 0,
-    privacyBreaches: settings.privacy_breach_threshold !== undefined && settings.privacy_breach_threshold !== null ? Number(settings.privacy_breach_threshold) : 0,
+    ltir:                    settings.ltir_threshold !== undefined && settings.ltir_threshold !== null ? Number(settings.ltir_threshold) : 0.5,
+    fatalities:              settings.fatalities_threshold !== undefined && settings.fatalities_threshold !== null ? Number(settings.fatalities_threshold) : 0,
+    renewable:               settings.renewable_target_pct !== undefined && settings.renewable_target_pct !== null ? Number(settings.renewable_target_pct) : 30,
+    water:                   settings.water_intensity_target_m3 !== undefined && settings.water_intensity_target_m3 !== null ? Number(settings.water_intensity_target_m3) : 200,
+    boardFemale:             settings.board_female_target_pct !== undefined && settings.board_female_target_pct !== null ? Number(settings.board_female_target_pct) : 30,
+    wasteDiv:                settings.waste_diversion_target_pct !== undefined && settings.waste_diversion_target_pct !== null ? Number(settings.waste_diversion_target_pct) : 50,
+    corruptTrain:            settings.corrupt_training_target_pct !== undefined && settings.corrupt_training_target_pct !== null ? Number(settings.corrupt_training_target_pct) : 95,
+    localSupplier:           settings.local_supplier_target_pct !== undefined && settings.local_supplier_target_pct !== null ? Number(settings.local_supplier_target_pct) : 50,
+    communityInvest:         settings.community_invest_target_rm !== undefined && settings.community_invest_target_rm !== null ? Number(settings.community_invest_target_rm) : 10000,
+    scope12Target:           settings.scope12_target_tco2e !== undefined && settings.scope12_target_tco2e !== null ? Number(settings.scope12_target_tco2e) : 100,
+    hrComplaints:            settings.hr_complaint_target !== undefined && settings.hr_complaint_target !== null ? Number(settings.hr_complaint_target) : 0,
+    corruptionIncidents:     settings.corruption_incident_threshold !== undefined && settings.corruption_incident_threshold !== null ? Number(settings.corruption_incident_threshold) : 0,
+    privacyBreaches:         settings.privacy_breach_threshold !== undefined && settings.privacy_breach_threshold !== null ? Number(settings.privacy_breach_threshold) : 0,
+
+    // New parameters from the PDF triggers
+    wasteHazardousLimit:     settings.waste_hazardous_limit_kg !== undefined && settings.waste_hazardous_limit_kg !== null ? Number(settings.waste_hazardous_limit_kg) : 500,
+    contractorLimit:         settings.contractor_ratio_threshold !== undefined && settings.contractor_ratio_threshold !== null ? Number(settings.contractor_ratio_threshold) : 30,
+    turnoverLimit:           settings.employee_turnover_threshold !== undefined && settings.employee_turnover_threshold !== null ? Number(settings.employee_turnover_threshold) : 5,
+    beneficiariesTarget:     settings.community_beneficiaries_target !== undefined && settings.community_beneficiaries_target !== null ? Number(settings.community_beneficiaries_target) : 1000,
+    corruptAssess:           settings.corruption_risk_assessment_target_pct !== undefined && settings.corruption_risk_assessment_target_pct !== null ? Number(settings.corruption_risk_assessment_target_pct) : 95,
+
     climateScenarioRequired: isRequired(settings.climate_scenario_required, 1),
     climateFinanceRequired:  isRequired(settings.climate_finance_required, 1),
     govOversightRequired:    isRequired(settings.gov_oversight_required, 1),
     execAccountRequired:     isRequired(settings.exec_accountability_required, 1),
     ermIntegrationRequired:  isRequired(settings.erm_integration_required, 1),
+    physicalRiskRequired:    isRequired(settings.physical_risk_required, 1),
   };
 
-  const ltirOk = T.ltir > 0 ? avgLtir <= T.ltir : avgLtir === 0;
+  /* ── Prior year comparisons ───────────────────────────────────────── */
+  const priorYear = String(Number(selectedYear) - 1);
+  const priorYearEvents = events.filter((e: any) => e.reporting_year === priorYear);
+  const priorN = priorYearEvents.length || 1;
+  const priorSum = (key: string) => priorYearEvents.reduce((a, c: any) => a + (Number(c[key]) || 0), 0);
+  const priorAvg = (key: string) => priorSum(key) / priorN;
+
+  const priorWater = priorSum('total_water_m3');
+  const priorEnergy = priorSum('total_energy_mwh');
+  const priorRenewablePct = priorAvg('renewable_energy_pct');
+  const priorLtir = priorAvg('ltir');
 
   /* ════════════════════════════════════════════════════════════════
      SDG DEFINITIONS — EVERY CARD HAS ITS OWN thresholdFields
@@ -136,23 +155,16 @@ const SDGDashboard = () => {
     {
       num: 3, name: 'Good Health & Well-being', color: '#4C9F38',
       target: '3.9 Reduce deaths from pollution | 3.4 Decent work, safe environments',
-      metric: ltirOk && totalFatalities <= T.fatalities
-        ? `LTIR within threshold (≤${T.ltir}), Fatalities within threshold (≤${T.fatalities})`
-        : `LTIR: ${avgLtir.toFixed(2)} (threshold ${T.ltir}) | Fatalities: ${totalFatalities} (threshold ${T.fatalities})`,
-      status: totalFatalities <= T.fatalities && ltirOk
+      metric: `Hazardous Waste: ${sum('waste_hazardous_kg').toFixed(1)} kg (threshold ≤${T.wasteHazardousLimit} kg)`,
+      status: n > 0 && sum('waste_hazardous_kg') <= T.wasteHazardousLimit && sum('waste_hazardous_kg') >= 0
         ? STATUS.ACHIEVED
-        : totalFatalities <= T.fatalities ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalFatalities <= T.fatalities ? (ltirOk ? 100 : 55) : 15,
+        : sum('waste_hazardous_kg') >= 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((sum('waste_hazardous_kg') <= T.wasteHazardousLimit ? 1 : 0) + (sum('waste_hazardous_kg') >= 0 ? 1 : 0)) / 2 * 100),
       thresholdFields: [
         {
-          key: 'ltir_threshold', label: 'Max LTIR Rate', type: 'number',
-          unit: 'rate', min: 0, max: 10, step: 0.01, default: 0.5,
-          hint: 'Maximum acceptable Lost-Time Injury Rate per 200,000 hrs worked. Events must average ≤ this to be Achieved.',
-        },
-        {
-          key: 'fatalities_threshold', label: 'Max Fatalities Allowed', type: 'number',
-          unit: 'count', min: 0, max: 10, step: 1, default: 0,
-          hint: 'Maximum number of work-related fatalities tolerated for Achieved status.',
+          key: 'waste_hazardous_limit_kg', label: 'Max Hazardous Waste Allowed', type: 'number',
+          unit: 'kg', min: 0, max: 10000, step: 10, default: 500,
+          hint: 'Maximum total hazardous waste (kg) allowed across events to count as Achieved.',
         },
       ],
     },
@@ -161,12 +173,11 @@ const SDGDashboard = () => {
     {
       num: 5, name: 'Gender Equality', color: '#FF3A21',
       target: '5.5 Women\'s participation & leadership | 5.1 End gender discrimination',
-      metric: hasBoardData
-        ? `${boardFemalePct.toFixed(1)}% female board (target ≥${T.boardFemale}%) | HR complaints: ${totalHrComplaints} (target ≤${T.hrComplaints})`
-        : 'Board diversity not tracked',
-      status: !hasBoardData ? STATUS.NOT_STARTED
-        : boardFemalePct >= T.boardFemale && totalHrComplaints <= T.hrComplaints ? STATUS.ACHIEVED : STATUS.PARTIAL,
-      pct: hasBoardData ? Math.min(100, Math.min(80, (boardFemalePct / T.boardFemale) * 80) + (totalHrComplaints <= T.hrComplaints ? 20 : 0)) : 0,
+      metric: `Board Female: ${boardFemalePct.toFixed(1)}% (target ≥${T.boardFemale}%) | Employee Diversity Profile: ${corp.emp_total > 0 ? 'Tracked' : 'No'} | Complaints: ${totalHrComplaints} (target ≤${T.hrComplaints})`,
+      status: boardFemalePct >= T.boardFemale && corp.emp_total > 0 && totalHrComplaints <= T.hrComplaints
+        ? STATUS.ACHIEVED
+        : boardFemalePct > 0 || corp.emp_total > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((boardFemalePct >= T.boardFemale ? 1 : 0) + (corp.emp_total > 0 ? 1 : 0) + (totalHrComplaints <= T.hrComplaints ? 1 : 0)) / 3 * 100),
       thresholdFields: [
         {
           key: 'board_female_target_pct', label: 'Female Board Representation Target', type: 'number',
@@ -185,13 +196,11 @@ const SDGDashboard = () => {
     {
       num: 6, name: 'Clean Water & Sanitation', color: '#26BDE2',
       target: '6.4 Increase water-use efficiency',
-      metric: totalWater > 0
-        ? `${totalWater.toLocaleString()} m³ tracked | Target: ≤${T.water.toLocaleString()} m³/event avg`
-        : 'Water not tracked',
-      status: totalWater > 0 && (totalWater / n) <= T.water
+      metric: `Avg Water: ${(totalWater/n).toFixed(0)} m³ (target ≤${T.water} m³) | YoY Trend: ${priorWater > 0 ? (totalWater <= priorWater ? 'Declined/Stable' : 'Increased') : 'No baseline'}`,
+      status: totalWater > 0 && (totalWater / n) <= T.water && (priorWater > 0 ? totalWater <= priorWater : true)
         ? STATUS.ACHIEVED
         : totalWater > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalWater > 0 ? Math.min(100, (1 - Math.max(0, (totalWater / n) - T.water) / T.water) * 100) : 0,
+      pct: Math.round(((totalWater > 0 ? 1 : 0) + ((priorWater > 0 ? totalWater <= priorWater : true) ? 1 : 0) + ((totalWater / n) <= T.water ? 1 : 0)) / 3 * 100),
       thresholdFields: [
         {
           key: 'water_intensity_target_m3', label: 'Max Water Consumption per Event', type: 'number',
@@ -205,12 +214,11 @@ const SDGDashboard = () => {
     {
       num: 7, name: 'Affordable & Clean Energy', color: '#FCC30B',
       target: '7.2 Increase renewable energy share | 7.3 Improve energy efficiency',
-      metric: totalEnergy > 0
-        ? `${avgRenewablePct.toFixed(1)}% renewable (target ≥${T.renewable}%) | ${totalEnergy.toFixed(1)} MWh total`
-        : 'Energy not tracked',
-      status: avgRenewablePct >= T.renewable ? STATUS.ACHIEVED
+      metric: `Renewable: ${avgRenewablePct.toFixed(1)}% (target ≥${T.renewable}%) | YoY Energy Trend: ${priorEnergy > 0 ? (totalEnergy <= priorEnergy ? 'Declined/Stable' : 'Increased') : 'No baseline'}`,
+      status: totalEnergy > 0 && avgRenewablePct >= T.renewable && (priorRenewablePct > 0 ? avgRenewablePct >= priorRenewablePct : true) && (priorEnergy > 0 ? totalEnergy <= priorEnergy : true)
+        ? STATUS.ACHIEVED
         : totalEnergy > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: Math.min(100, totalEnergy > 0 ? (avgRenewablePct / T.renewable) * 100 : 0),
+      pct: Math.round(((totalEnergy > 0 ? 1 : 0) + (avgRenewablePct >= T.renewable ? 1 : 0) + ((priorRenewablePct > 0 ? avgRenewablePct >= priorRenewablePct : true) ? 1 : 0) + ((priorEnergy > 0 ? totalEnergy <= priorEnergy : true) ? 1 : 0)) / 4 * 100),
       thresholdFields: [
         {
           key: 'renewable_target_pct', label: 'Renewable Energy Mix Target', type: 'number',
@@ -224,18 +232,26 @@ const SDGDashboard = () => {
     {
       num: 8, name: 'Decent Work & Economic Growth', color: '#A21942',
       target: '8.5 Full & productive employment | 8.8 Safe working environments | 8.7 Ethical labour',
-      metric: `Fatalities: ${totalFatalities} (target ≤${T.fatalities}) | HR complaints: ${totalHrComplaints} (target ≤${T.hrComplaints}) | Training: ${totalTraining.toLocaleString()} hrs | Local suppliers: ${avgLocalSupplier.toFixed(1)}% (target ≥${T.localSupplier}%)`,
-      status: totalFatalities <= T.fatalities && totalHrComplaints <= T.hrComplaints && avgLocalSupplier >= T.localSupplier
+      metric: `Fatalities: ${totalFatalities} | LTIR: ${avgLtir.toFixed(2)} | Contractor: ${avg('contractor_pct').toFixed(1)}% (≤${T.contractorLimit}%) | Turnover: ${avg('turnover_count').toFixed(1)} (≤${T.turnoverLimit}) | Local Spend: ${avgLocalSupplier.toFixed(1)}% (≥${T.localSupplier}%)`,
+      status: totalFatalities === 0 && (avgLtir === 0 || (priorLtir > 0 && avgLtir <= priorLtir)) && totalHrComplaints <= T.hrComplaints && avgLocalSupplier >= T.localSupplier && avg('contractor_pct') <= T.contractorLimit && avg('turnover_count') <= T.turnoverLimit
         ? STATUS.ACHIEVED
-        : totalFatalities <= T.fatalities ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalFatalities <= T.fatalities
-        ? Math.min(100, (totalHrComplaints <= T.hrComplaints ? 40 : 20) + Math.min(60, (avgLocalSupplier / T.localSupplier) * 60))
-        : 10,
+        : totalFatalities === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((totalFatalities === 0 ? 1 : 0) + ((avgLtir === 0 || (priorLtir > 0 && avgLtir <= priorLtir)) ? 1 : 0) + (totalHrComplaints <= T.hrComplaints ? 1 : 0) + (avgLocalSupplier >= T.localSupplier ? 1 : 0) + (avg('contractor_pct') <= T.contractorLimit ? 1 : 0) + (avg('turnover_count') <= T.turnoverLimit ? 1 : 0)) / 6 * 100),
       thresholdFields: [
         {
           key: 'local_supplier_target_pct', label: 'Local Supplier Spend Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 50,
           hint: 'Minimum % of procurement spend with local suppliers to count as Achieved.',
+        },
+        {
+          key: 'contractor_ratio_threshold', label: 'Max Contractor Ratio Allowed', type: 'number',
+          unit: '%', min: 0, max: 100, step: 1, default: 30,
+          hint: 'Maximum allowed proportion of contract/temporary workers.',
+        },
+        {
+          key: 'employee_turnover_threshold', label: 'Max Employee Turnover Allowed', type: 'number',
+          unit: 'count', min: 0, max: 50, step: 1, default: 5,
+          hint: 'Maximum allowed average employee turnover count per event.',
         },
         {
           key: 'hr_complaint_target', label: 'Max HR Complaints Allowed', type: 'number',
@@ -254,20 +270,16 @@ const SDGDashboard = () => {
     {
       num: 10, name: 'Reduced Inequalities', color: '#DD1367',
       target: '10.3 Equal opportunity | 10.2 Social inclusion',
-      metric: totalHrComplaints <= T.hrComplaints
-        ? `Discrimination complaints ≤${T.hrComplaints} | ${hasBoardData ? `${boardFemalePct.toFixed(1)}% female board` : 'Board diversity not tracked'} | Community: RM ${totalCommunity.toLocaleString()}`
-        : `${totalHrComplaints} HR complaint(s) (target ≤${T.hrComplaints})`,
-      status: totalHrComplaints <= T.hrComplaints && hasBoardData && totalCommunity >= T.communityInvest
+      metric: `Complaints: ${totalHrComplaints} (≤${T.hrComplaints}) | Diversity Profile: ${corp.emp_total > 0 ? 'Tracked' : 'No'} | Beneficiaries: ${sum('community_beneficiaries')} (target ≥${T.beneficiariesTarget})`,
+      status: totalHrComplaints <= T.hrComplaints && corp.emp_total > 0 && sum('community_beneficiaries') >= T.beneficiariesTarget
         ? STATUS.ACHIEVED
-        : totalHrComplaints <= T.hrComplaints ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalHrComplaints <= T.hrComplaints
-        ? Math.min(100, (hasBoardData ? 40 : 20) + Math.min(60, (totalCommunity / T.communityInvest) * 60))
-        : 5,
+        : totalHrComplaints <= T.hrComplaints || corp.emp_total > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((totalHrComplaints <= T.hrComplaints ? 1 : 0) + ((corp.emp_total > 0 && corp.emp_under30_pct != null) ? 1 : 0) + (sum('community_beneficiaries') >= T.beneficiariesTarget ? 1 : 0)) / 3 * 100),
       thresholdFields: [
         {
-          key: 'community_invest_target_rm', label: 'Community Investment Target', type: 'number',
-          unit: 'RM', min: 0, max: 1000000, step: 1000, default: 10000,
-          hint: 'Minimum total community investment (RM) across events in the year to count as Achieved.',
+          key: 'community_beneficiaries_target', label: 'Community Beneficiaries Target', type: 'number',
+          unit: 'people', min: 0, max: 100000, step: 10, default: 1000,
+          hint: 'Minimum total community beneficiaries reached to count as Achieved.',
         },
         {
           key: 'hr_complaint_target', label: 'Max HR Complaints Allowed', type: 'number',
@@ -280,19 +292,21 @@ const SDGDashboard = () => {
     /* ─ SDG 11: Sustainable Cities ──────────────────────────────── */
     {
       num: 11, name: 'Sustainable Cities', color: '#FD6925',
-      target: '11.6 Reduce per-capita environmental impact | 11.b Climate resilience',
-      metric: totalWasteKg > 0
-        ? `${(totalWasteKg/1000).toFixed(2)} t waste | ${avgDivertedPct.toFixed(1)}% diverted (target ≥${T.wasteDiv}%) | Community inv: RM ${totalCommunity.toLocaleString()}`
-        : 'Waste not tracked',
-      status: avgDivertedPct >= T.wasteDiv && (!T.climateScenarioRequired || hasClimateScenario)
+      target: '11.6 Reduce environmental impact | 11.b Climate resilience',
+      metric: [
+        `Waste Diversion: ${avgDivertedPct.toFixed(1)}% (target ≥${T.wasteDiv}%)`,
+        T.climateScenarioRequired ? `Scenario: ${hasClimateScenario ? '✓' : '✗'}` : null,
+        T.physicalRiskRequired ? `Physical Risk Exposure: ${Number(corp.climate_physical_risk_rm) > 0 ? 'Quantified' : 'No'}` : null
+      ].filter(Boolean).join(' | '),
+      status: avgDivertedPct >= T.wasteDiv && sum('waste_hazardous_kg') >= 0 && sum('waste_nonhazardous_kg') >= 0 && (!T.climateScenarioRequired || hasClimateScenario) && (!T.physicalRiskRequired || (Number(corp.climate_physical_risk_rm) > 0 && Number(corp.climate_chronic_risk_rm) > 0))
         ? STATUS.ACHIEVED
-        : totalWasteKg > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalWasteKg > 0 ? Math.min(100, Math.min(60, (avgDivertedPct / T.wasteDiv) * 60) + ((!T.climateScenarioRequired || hasClimateScenario) ? 40 : 0)) : 0,
+        : avgDivertedPct > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((sum('waste_hazardous_kg') >= 0 ? 1 : 0) + (sum('waste_nonhazardous_kg') >= 0 ? 1 : 0) + (avgDivertedPct >= T.wasteDiv ? 1 : 0) + ((!T.climateScenarioRequired || hasClimateScenario) ? 1 : 0) + ((!T.physicalRiskRequired || (Number(corp.climate_physical_risk_rm) > 0 && Number(corp.climate_chronic_risk_rm) > 0)) ? 1 : 0)) / 5 * 100),
       thresholdFields: [
         {
           key: 'waste_diversion_target_pct', label: 'Waste Diversion Rate Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 50,
-          hint: 'Minimum % of waste diverted from landfill (recycled, composted, recovered) to count as Achieved.',
+          hint: 'Minimum % of waste diverted from landfill to count as Achieved.',
         },
         {
           key: 'climate_scenario_required', label: 'Climate Scenario Required', type: 'select',
@@ -303,24 +317,32 @@ const SDGDashboard = () => {
           default: 1,
           hint: 'Require Climate Scenario Analysis to be completed for Achieved status.',
         },
+        {
+          key: 'physical_risk_required', label: 'Physical Risk Quantified Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require financial physical risk exposure to be quantified in RM terms for Achieved status.',
+        },
       ],
     },
 
     /* ─ SDG 12: Responsible Consumption ─────────────────────────── */
     {
       num: 12, name: 'Responsible Consumption', color: '#BF8B2E',
-      target: '12.4 Responsible waste management | 12.5 Reduce waste | 12.6 Sustainability reporting',
-      metric: avgDivertedPct > 0
-        ? `${avgDivertedPct.toFixed(1)}% waste diversion (target ≥${T.wasteDiv}%) | ${totalWasteKg > 0 ? `${(totalWasteKg/1000).toFixed(2)} t tracked` : 'No waste data'}`
-        : 'No waste data',
-      status: avgDivertedPct >= T.wasteDiv ? STATUS.ACHIEVED
+      target: '12.4 Waste management | 12.5 Reduce waste | 12.6 Sustainability reporting',
+      metric: `Waste Diversion: ${avgDivertedPct.toFixed(1)}% (target ≥${T.wasteDiv}%) | Rolling 3-Yr Data: ${availableYears.length >= 3 ? 'Yes' : 'No'} | Energy/Water YoY: ${((priorEnergy > 0 ? totalEnergy <= priorEnergy : true) && (priorWater > 0 ? totalWater <= priorWater : true)) ? 'Improved/Stable' : 'No improvement'}`,
+      status: avgDivertedPct >= T.wasteDiv && sum('waste_hazardous_kg') >= 0 && sum('waste_nonhazardous_kg') >= 0 && (availableYears.length >= 3) && (priorEnergy > 0 ? totalEnergy <= priorEnergy : true) && (priorWater > 0 ? totalWater <= priorWater : true)
+        ? STATUS.ACHIEVED
         : avgDivertedPct > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: Math.min(100, T.wasteDiv > 0 ? (avgDivertedPct / T.wasteDiv) * 100 : 0),
+      pct: Math.round(((sum('waste_hazardous_kg') >= 0 ? 1 : 0) + (sum('waste_nonhazardous_kg') >= 0 ? 1 : 0) + (avgDivertedPct >= T.wasteDiv ? 1 : 0) + (availableYears.length >= 3 ? 1 : 0) + (((priorEnergy > 0 ? totalEnergy <= priorEnergy : true) && (priorWater > 0 ? totalWater <= priorWater : true)) ? 1 : 0)) / 5 * 100),
       thresholdFields: [
         {
           key: 'waste_diversion_target_pct', label: 'Waste Diversion Rate Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 50,
-          hint: 'Shared with SDG 11. Minimum % of waste diverted from landfill to qualify as Achieved.',
+          hint: 'Minimum % of waste diverted from landfill to qualify as Achieved.',
         },
       ],
     },
@@ -328,22 +350,24 @@ const SDGDashboard = () => {
     /* ─ SDG 13: Climate Action ───────────────────────────────────── */
     {
       num: 13, name: 'Climate Action', color: '#3F7E44',
-      target: '13.2 Integrate climate measures into planning | 13.1 Strengthen climate resilience',
-      metric: totalScope123 > 0
-        ? `${totalScope123.toFixed(2)} tCO₂e (target ≤${T.scope12Target} tCO₂e Sc1+2) | Scenario: ${hasClimateScenario ? '✓' : '✗'} | Finance: ${hasClimateFinance ? '✓' : '✗'}`
-        : 'Emissions not tracked',
-      status: totalScope123 > 0 &&
+      target: '13.2 Integrate climate measures | 13.1 Strengthen climate resilience',
+      metric: [
+        `Scope 1+2: ${(sum('scope1_tco2e') + sum('scope2_lb_tco2e')).toFixed(1)} tCO₂e (target ≤${T.scope12Target})`,
+        T.climateFinanceRequired ? `CapEx: RM ${corp.climate_capex_rm || 0}` : null,
+        T.climateFinanceRequired ? `Shadow Price: RM ${corp.internal_carbon_price || 0}` : null,
+        T.climateScenarioRequired ? `Scenario: ${hasClimateScenario ? '✓' : '✗'}` : null,
+        T.govOversightRequired ? `Oversight: ${hasGovOversight ? '✓' : '✗'}` : null,
+        T.execAccountRequired ? `Remuneration Linkage: ${corp.exec_climate_remun_pct || 0}%` : null
+      ].filter(Boolean).join(' | '),
+      status: (sum('scope1_tco2e') > 0 && sum('scope2_lb_tco2e') > 0 && sum('scope3_tco2e') > 0) &&
+        (sum('scope1_tco2e') + sum('scope2_lb_tco2e')) <= T.scope12Target &&
+        (!T.climateFinanceRequired || (corp.climate_capex_rm > 0 && corp.internal_carbon_price > 0 && corp.climate_transition_risk_rm > 0 && corp.climate_physical_risk_rm > 0 && corp.climate_chronic_risk_rm > 0)) &&
         (!T.climateScenarioRequired || hasClimateScenario) &&
-        (!T.climateFinanceRequired || hasClimateFinance) &&
-        totalScope12 <= T.scope12Target
+        (!T.govOversightRequired || hasGovOversight) &&
+        (!T.execAccountRequired || corp.exec_climate_remun_pct > 0)
           ? STATUS.ACHIEVED
-          : totalScope123 > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalScope123 > 0
-        ? Math.min(100,
-            (totalScope12 <= T.scope12Target ? 40 : Math.min(40, (T.scope12Target / totalScope12) * 40))
-            + ((!T.climateScenarioRequired || hasClimateScenario) ? 30 : 0)
-            + ((!T.climateFinanceRequired || hasClimateFinance) ? 30 : 0))
-        : 0,
+          : sum('scope1_tco2e') > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: Math.round(((sum('scope1_tco2e') > 0 && sum('scope2_lb_tco2e') > 0 && sum('scope3_tco2e') > 0 ? 1 : 0) + ((sum('scope1_tco2e') + sum('scope2_lb_tco2e')) <= T.scope12Target ? 1 : 0) + ((!T.climateFinanceRequired || (corp.climate_capex_rm > 0 && corp.internal_carbon_price > 0 && corp.climate_transition_risk_rm > 0 && corp.climate_physical_risk_rm > 0 && corp.climate_chronic_risk_rm > 0)) ? 1 : 0) + ((!T.climateScenarioRequired || hasClimateScenario) ? 1 : 0) + ((!T.govOversightRequired || hasGovOversight) ? 1 : 0) + ((!T.execAccountRequired || (corp.exec_climate_remun_pct > 0)) ? 1 : 0)) / 6 * 100),
       thresholdFields: [
         {
           key: 'scope12_target_tco2e', label: 'Scope 1+2 Emissions Target', type: 'number',
@@ -366,7 +390,7 @@ const SDGDashboard = () => {
             { value: '0', label: 'No' },
           ],
           default: 1,
-          hint: 'Require Climate Opportunities / Capex / Internal Carbon Price tracking for Achieved status.',
+          hint: 'Require Climate Opportunities / Capex / Internal Carbon Price / Risks tracking for Achieved status.',
         },
       ],
     },
@@ -374,30 +398,36 @@ const SDGDashboard = () => {
     /* ─ SDG 16: Peace, Justice & Institutions ────────────────────── */
     {
       num: 16, name: 'Peace, Justice & Institutions', color: '#0A97D9',
-      target: '16.5 Reduce corruption & bribery | 16.6 Transparent institutions | 16.10 Data privacy',
-      metric: `Training: ${corruptTraining > 0 ? corruptTraining.toFixed(1) + '%' : 'N/A'} (target ≥${T.corruptTrain}%) | Incidents: ${corruptIncidents} (target ≤${T.corruptionIncidents}) | Breaches: ${privacyBreaches} (target ≤${T.privacyBreaches}) | ERM: ${corp.risk_erm_integration_status || 'N/A'}`,
-      status:
+      target: '16.5 Reduce corruption | 16.6 Transparent institutions | 16.10 Data privacy',
+      metric: [
+        `Training: ${corruptTraining.toFixed(1)}% (target ≥${T.corruptTrain}%)`,
+        `Risk Assessment: ${(corp.corruption_risk_assessment_pct || 0).toFixed(1)}% (target ≥${T.corruptAssess}%)`,
+        `Incidents: ${corruptIncidents} (target ≤${T.corruptionIncidents})`,
+        `Breaches: ${privacyBreaches} (target ≤${T.privacyBreaches})`,
+        T.govOversightRequired ? `Oversight: ${hasGovOversight ? '✓' : '✗'}` : null,
+        T.execAccountRequired ? `Executive Accountability: ${hasExecAccount ? '✓' : '✗'}` : null,
+        T.ermIntegrationRequired ? `ERM Integration: ${hasErmIntegration ? '✓' : '✗'}` : null
+      ].filter(Boolean).join(' | '),
+      status: corruptTraining >= T.corruptTrain &&
+        (corp.corruption_risk_assessment_pct || 0) >= T.corruptAssess &&
         corruptIncidents <= T.corruptionIncidents &&
-        privacyBreaches <= T.privacyBreaches &&
-        corruptTraining >= T.corruptTrain &&
         (!T.govOversightRequired || hasGovOversight) &&
         (!T.execAccountRequired || hasExecAccount) &&
-        (!T.ermIntegrationRequired || hasErmIntegration)
+        (!T.ermIntegrationRequired || hasErmIntegration) &&
+        privacyBreaches <= T.privacyBreaches
           ? STATUS.ACHIEVED
           : corruptIncidents <= T.corruptionIncidents && privacyBreaches <= T.privacyBreaches ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: corruptIncidents <= T.corruptionIncidents
-        ? Math.min(100,
-            (corruptTraining > 0 ? Math.min(corruptTraining, T.corruptTrain) / T.corruptTrain * 50 : 10)
-            + (privacyBreaches <= T.privacyBreaches ? 15 : 0)
-            + ((!T.govOversightRequired || hasGovOversight) ? 15 : 0)
-            + ((!T.execAccountRequired || hasExecAccount) ? 10 : 0)
-            + ((!T.ermIntegrationRequired || hasErmIntegration) ? 10 : 0))
-        : 5,
+      pct: Math.round(((corruptTraining >= T.corruptTrain ? 1 : 0) + ((corp.corruption_risk_assessment_pct || 0) >= T.corruptAssess ? 1 : 0) + (corruptIncidents <= T.corruptionIncidents ? 1 : 0) + ((!T.govOversightRequired || hasGovOversight) ? 1 : 0) + ((!T.execAccountRequired || hasExecAccount) ? 1 : 0) + ((!T.ermIntegrationRequired || hasErmIntegration) ? 1 : 0) + (privacyBreaches <= T.privacyBreaches ? 1 : 0)) / 7 * 100),
       thresholdFields: [
         {
           key: 'corrupt_training_target_pct', label: 'Anti-Corruption Training Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 95,
           hint: 'Minimum anti-corruption training coverage % required across the organisation for Achieved status.',
+        },
+        {
+          key: 'corruption_risk_assessment_target_pct', label: 'Corruption Risk Assessment Target', type: 'number',
+          unit: '%', min: 0, max: 100, step: 1, default: 95,
+          hint: 'Minimum operations assessed for corruption-related risks % required for Achieved status.',
         },
         {
           key: 'corruption_incident_threshold', label: 'Max Corruption Incidents Allowed', type: 'number',

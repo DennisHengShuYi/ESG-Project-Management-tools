@@ -122,6 +122,9 @@ set
   board_under30_pct               = 0.0,
   board_30to50_pct                = 45.0,
   board_over50_pct                = 55.0,
+  emp_under30_pct                 = 25.0,
+  emp_30to50_pct                  = 50.0,
+  emp_over50_pct                  = 25.0,
   anticorrupt_training_coverage   = 98.5,
   corruption_risk_assessment_pct  = 100.0,
   confirmed_corruption_incidents  = 0

@@ -38,19 +38,22 @@ const pctOf = (numKey: string, denKey: string) => (d: any) => {
 };
 
 const HR_DIVERSITY_FIELDS = [
-  { key: 'emp_total',                     label: 'Workforce — Total Employees',        type: 'number' },
-  { key: 'emp_female',                    label: 'Workforce — Female Headcount',       type: 'number' },
-  { key: 'emp_male',                      label: 'Workforce — Male Headcount',         type: 'number' },
-  { key: 'emp_female_pct',                label: 'Workforce — Female %',                readOnly: true, compute: pctOf('emp_female', 'emp_total') },
-  { key: 'emp_male_pct',                  label: 'Workforce — Male %',                  readOnly: true, compute: pctOf('emp_male', 'emp_total') },
   { key: 'board_total',                   label: 'Board — Total Members',              type: 'number' },
   { key: 'board_female',                  label: 'Board — Female Headcount',           type: 'number' },
   { key: 'board_male',                    label: 'Board — Male Headcount',             type: 'number' },
   { key: 'board_female_pct',              label: 'Board — Female %',                    readOnly: true, compute: pctOf('board_female', 'board_total') },
   { key: 'board_male_pct',                label: 'Board — Male %',                      readOnly: true, compute: pctOf('board_male', 'board_total') },
-  { key: 'board_under30_pct',             label: 'Age Profile — Under 30',             unit: '%' },
-  { key: 'board_30to50_pct',              label: 'Age Profile — 30 to 50',             unit: '%' },
-  { key: 'board_over50_pct',              label: 'Age Profile — Over 50',              unit: '%' },
+  { key: 'board_under30_pct',             label: 'Board Age Profile — Under 30',       unit: '%' },
+  { key: 'board_30to50_pct',              label: 'Board Age Profile — 30 to 50',       unit: '%' },
+  { key: 'board_over50_pct',              label: 'Board Age Profile — Over 50',        unit: '%' },
+  { key: 'emp_total',                     label: 'Workforce — Total Employees',        type: 'number' },
+  { key: 'emp_female',                    label: 'Workforce — Female Headcount',       type: 'number' },
+  { key: 'emp_male',                      label: 'Workforce — Male Headcount',         type: 'number' },
+  { key: 'emp_female_pct',                label: 'Workforce — Female %',                readOnly: true, compute: pctOf('emp_female', 'emp_total') },
+  { key: 'emp_male_pct',                  label: 'Workforce — Male %',                  readOnly: true, compute: pctOf('emp_male', 'emp_total') },
+  { key: 'emp_under30_pct',               label: 'Workforce Age Profile — Under 30',   unit: '%' },
+  { key: 'emp_30to50_pct',                label: 'Workforce Age Profile — 30 to 50',   unit: '%' },
+  { key: 'emp_over50_pct',                label: 'Workforce Age Profile — Over 50',    unit: '%' },
   { key: 'anticorrupt_training_coverage', label: 'Anti-Corruption Training Coverage',  unit: '%' },
   { key: 'corruption_risk_assessment_pct',label: 'Corruption Risk Assessment',         unit: '%' },
   { key: 'confirmed_corruption_incidents',label: 'Confirmed Corruption Incidents',      type: 'number' },
@@ -207,6 +210,12 @@ const Dashboard = () => {
     { name: '<30',   value: +(corp.board_under30_pct || 0), fill: C.green },
     { name: '30–50', value: +(corp.board_30to50_pct || 0),  fill: C.blue },
     { name: '>50',   value: +(corp.board_over50_pct || 0),  fill: C.purple },
+  ] : [];
+
+  const empAgeData = corp.emp_under30_pct != null ? [
+    { name: '<30',   value: +(corp.emp_under30_pct || 0), fill: C.green },
+    { name: '30–50', value: +(corp.emp_30to50_pct || 0),  fill: C.blue },
+    { name: '>50',   value: +(corp.emp_over50_pct || 0),  fill: C.purple },
   ] : [];
 
   /* ── Corp save handler ─────────────────────────────────────────── */
@@ -447,6 +456,10 @@ const Dashboard = () => {
       <div className="chart-card glass-card">
         <h4 className="chart-title">Board Age Profile (%)</h4>
         <DonutChart data={ageData} valueSuffix="%" />
+      </div>
+      <div className="chart-card glass-card">
+        <h4 className="chart-title">Workforce Age Profile (%)</h4>
+        <DonutChart data={empAgeData} valueSuffix="%" />
       </div>
       <div className="chart-card glass-card">
         <h4 className="chart-title">Anti-Corruption Training Coverage (toward 100% target)</h4>

@@ -175,7 +175,7 @@ async function run() {
   for (const host of HOSTS) {
     const client = new Client({
       host,
-      port: 5432,
+      port: 6543,
       database: 'postgres',
       user: `postgres.${PROJECT_REF}`,
       password: SERVICE_KEY,

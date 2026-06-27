@@ -693,6 +693,7 @@ const HR_KEYS = new Set([
   'board_total','board_female','board_male',
   'board_male_pct','board_female_pct',
   'board_under30_pct','board_30to50_pct','board_over50_pct',
+  'emp_under30_pct','emp_30to50_pct','emp_over50_pct',
   'anticorrupt_training_coverage','corruption_risk_assessment_pct','confirmed_corruption_incidents',
 ]);
 
