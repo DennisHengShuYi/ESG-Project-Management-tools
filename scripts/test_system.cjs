@@ -1,12 +1,24 @@
 /**
  * Full system test suite — runs against the live Supabase instance.
+ * Reads SUPABASE_URL / SUPABASE_ANON_KEY from backend/.env.
+ * Run after scripts/reseed_events.js has seeded the dummy data.
  * Usage: node scripts/test_system.cjs
  */
-const https = require('https');
+const https  = require('https');
+const path   = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config({ path: path.join(__dirname, '..', 'backend', '.env') });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const BASE  = 'https://rvndetvetovcnaievyoq.supabase.co/rest/v1';
-const ANON  = 'sb_publishable_tH6DLxY3pMBEpW93E_YDLw_5lI5c0YW';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const ANON         = process.env.SUPABASE_ANON_KEY;
+if (!SUPABASE_URL || !ANON) {
+  console.error('Set SUPABASE_URL and SUPABASE_ANON_KEY in backend/.env first.');
+  process.exit(1);
+}
+
+const BASE  = SUPABASE_URL + '/rest/v1';
 const HDRS  = { 'apikey': ANON, 'Authorization': 'Bearer ' + ANON, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
 const ORG   = '00000000-0000-0000-0000-000000000001';
 
@@ -30,13 +42,14 @@ const ok = (label, cond, info = '') => {
   if (cond) { console.log('  PASS', label); passed++; }
   else { console.log('  FAIL', label, info || ''); failed++; }
 };
+const close = (a, b, tol = 0.05) => typeof a === 'number' && Math.abs(a - b) < tol;
 
 (async () => {
   // ── Test 1: Events List ────────────────────────────────────────
   console.log('\n[1] Events List (getEvents)');
   const evRes = await api('GET', '/events?deleted_at=is.null&order=created_at.desc&select=id,event_name,event_status,reporting_year');
   ok('Returns array', Array.isArray(evRes.data));
-  ok('Has 5 events', evRes.data.length === 5);
+  ok('Has 12 events', evRes.data.length === 12);
   ok('event_name present', !!evRes.data[0]?.event_name);
   ok('No module fields leaked', evRes.data[0]?.total_energy_mwh === undefined);
 
@@ -44,46 +57,46 @@ const ok = (label, cond, info = '') => {
   console.log('\n[2] Events Flat View (getEventsFull / Dashboard)');
   const flatRes = await api('GET', '/events_flat?order=created_at.desc');
   ok('Returns array', Array.isArray(flatRes.data));
-  ok('Has 5 rows', flatRes.data.length === 5);
-  const ev1 = flatRes.data.find(x => x.event_name === 'Green Tech Summit 2025');
-  ok('Green Tech Summit found', !!ev1);
-  ok('total_energy_mwh = 48.5', ev1.total_energy_mwh === 48.5);
-  ok('renewable_energy_pct is number', typeof ev1.renewable_energy_pct === 'number');
-  ok('scope1_tco2e = 2.8', ev1.scope1_tco2e === 2.8);
-  ok('ltir present', ev1.ltir !== undefined);
-  ok('safety_trained_count = 320', ev1.safety_trained_count === 320);
-  ok('local_supplier_spend_pct > 0', ev1.local_supplier_spend_pct > 0);
-  ok('community_invest_rm = 15000', ev1.community_invest_rm === 15000);
-  ok('budget_estimated = 520000', ev1.budget_estimated === 520000);
-  ok('revenue_actual = 710000', ev1.revenue_actual === 710000);
-  ok('team_size_total = 42', ev1.team_size_total === 42);
-  ok('expected_attendance = 1800', ev1.expected_attendance === 1800);
-  ok('actual_attendance = 1650', ev1.actual_attendance === 1650);
+  ok('Has 12 rows', flatRes.data.length === 12);
+  const ev1 = flatRes.data.find(x => x.id === 'e0000000-0000-0000-0000-000000000001');
+  ok('Green Building Expo 2024 found', ev1?.event_name === 'Green Building Expo 2024');
+  ok('total_energy_mwh = 71.2', ev1?.total_energy_mwh === 71.2);
+  ok('renewable_energy_pct is number', typeof ev1?.renewable_energy_pct === 'number');
+  ok('scope1_tco2e = 4.2', ev1?.scope1_tco2e === 4.2);
+  ok('ltir present', ev1?.ltir !== undefined);
+  ok('safety_trained_count = 430', ev1?.safety_trained_count === 430);
+  ok('local_supplier_spend_pct > 0', ev1?.local_supplier_spend_pct > 0);
+  ok('community_invest_rm = 20000', ev1?.community_invest_rm === 20000);
+  ok('budget_estimated = 740000', ev1?.budget_estimated === 740000);
+  ok('revenue_actual = 952000', ev1?.revenue_actual === 952000);
+  ok('team_size_total = 64', ev1?.team_size_total === 64);
+  ok('expected_attendance = 2800', ev1?.expected_attendance === 2800);
+  ok('actual_attendance = 2650', ev1?.actual_attendance === 2650);
 
   // ── Test 3: Single Event Detail ────────────────────────────────
   console.log('\n[3] Event Detail (getEventDetail)');
-  const detailRes = await api('GET', '/events_flat?id=eq.10000000-0000-0000-0000-000000000001');
+  const detailRes = await api('GET', '/events_flat?id=eq.e0000000-0000-0000-0000-000000000001');
   ok('Single event returned', detailRes.data.length === 1);
-  ok('Correct event', detailRes.data[0]?.event_name === 'Green Tech Summit 2025');
+  ok('Correct event', detailRes.data[0]?.event_name === 'Green Building Expo 2024');
   ok('waste_diverted_pct present', detailRes.data[0]?.waste_diverted_pct !== undefined);
   ok('contractor_pct present', detailRes.data[0]?.contractor_pct !== undefined);
 
   // ── Test 4: GENERATED Columns ──────────────────────────────────
   console.log('\n[4] GENERATED Columns');
-  const genRes = await api('GET', '/module_green_ops?select=event_id,renewable_energy_pct,waste_diversion_pct&limit=5');
+  const genRes = await api('GET', '/module_green_ops?select=event_id,renewable_energy_pct,waste_diversion_pct&limit=12');
   ok('module_green_ops has GENERATED cols', genRes.data.every(r => r.renewable_energy_pct !== undefined));
-  const gen1 = genRes.data.find(r => r.event_id === '10000000-0000-0000-0000-000000000001');
-  ok('renewable_energy_pct computed correctly', gen1 && gen1.renewable_energy_pct > 0);
+  const gen1 = genRes.data.find(r => r.event_id === 'e0000000-0000-0000-0000-000000000001');
+  ok('renewable_energy_pct computed correctly (~13.76)', close(gen1?.renewable_energy_pct, 13.76));
 
-  const finGen = await api('GET', '/event_financials?select=event_id,net_profit,roi_pct,budget_variance&limit=5');
+  const finGen = await api('GET', '/event_financials?select=event_id,net_profit,roi_pct,budget_variance&limit=12');
   ok('event_financials GENERATED cols present', finGen.data.every(r => r.net_profit !== undefined));
-  const fin1 = finGen.data.find(r => r.event_id === '10000000-0000-0000-0000-000000000001');
-  ok('net_profit = 205000 (710000-505000)', fin1.net_profit === 205000);
-  ok('budget_variance = 15000 (520000-505000)', fin1.budget_variance === 15000);
+  const fin1 = finGen.data.find(r => r.event_id === 'e0000000-0000-0000-0000-000000000001');
+  ok('net_profit = 234000 (952000-718000)', fin1?.net_profit === 234000);
+  ok('budget_variance = 22000 (740000-718000)', fin1?.budget_variance === 22000);
 
-  const attGen = await api('GET', '/event_attendance?select=event_id,attendance_rate_pct&limit=5');
-  const att1 = attGen.data.find(r => r.event_id === '10000000-0000-0000-0000-000000000001');
-  ok('attendance_rate_pct = 91.67', Math.abs(att1.attendance_rate_pct - 91.67) < 0.1);
+  const attGen = await api('GET', '/event_attendance?select=event_id,attendance_rate_pct&limit=12');
+  const att1 = attGen.data.find(r => r.event_id === 'e0000000-0000-0000-0000-000000000001');
+  ok('attendance_rate_pct ~94.64', close(att1?.attendance_rate_pct, 94.64));
 
   // ── Test 5: Corporate Governance Modules ──────────────────────
   console.log('\n[5] Corporate Governance');
@@ -195,15 +208,17 @@ const ok = (label, cond, info = '') => {
     ok('Deleted event hidden from events_flat', afterDel.data.length === 0);
 
     const mainList = await api('GET', '/events?deleted_at=is.null&select=id');
-    ok('Main events list still has 5 rows', mainList.data.length === 5);
+    ok('Main events list still has 12 rows', mainList.data.length === 12);
   }
 
   // ── Test 9: Year Aggregation ───────────────────────────────────
   console.log('\n[9] Year Aggregation (Dashboard filter)');
+  const y2026 = await api('GET', '/events_flat?reporting_year=eq.2026');
   const y2025 = await api('GET', '/events_flat?reporting_year=eq.2025');
   const y2024 = await api('GET', '/events_flat?reporting_year=eq.2024');
-  ok('2025 events = 3', y2025.data.length === 3);
-  ok('2024 events = 2', y2024.data.length === 2);
+  ok('2026 events = 3', y2026.data.length === 3);
+  ok('2025 events = 5', y2025.data.length === 5);
+  ok('2024 events = 4', y2024.data.length === 4);
   const total2025Energy = y2025.data.reduce((a, e) => a + (e.total_energy_mwh || 0), 0);
   ok('2025 total energy > 0', total2025Energy > 0);
 

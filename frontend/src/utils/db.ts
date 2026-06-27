@@ -272,10 +272,6 @@ export const saveSettings = async (settingsData: any) => {
   }
 };
 
-export const seedDatabase = () => {
-  console.log('Using backend REST API for database queries.');
-};
-
 // ── CSV metric field definitions (editable columns only) ──────────
 // Each entry: { key: flat-field-key, label: human-readable label, module: section name }
 export const CSV_FIELDS = [

@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import { seedDatabase } from './utils/db';
-import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Auth from './pages/Auth';
 
@@ -66,11 +64,6 @@ function AppContent() {
 }
 
 function App() {
-  useEffect(() => {
-    // Initialize mock database with seed data if empty
-    seedDatabase();
-  }, []);
-
   return (
     <AuthProvider>
       <AppContent />

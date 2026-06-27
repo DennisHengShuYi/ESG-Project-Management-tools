@@ -1,80 +1,64 @@
 /**
- * Supabase migration script — runs schema.sql then seed_dummy.sql.
- * Uses direct PostgreSQL connection on port 5432.
+ * Supabase schema migration — applies supabase/schema.sql via a direct
+ * PostgreSQL connection. Reads SUPABASE_URL from backend/.env.
  * Usage: node scripts/migrate.cjs
  */
 
 const { Client } = require('pg');
-const fs   = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
+const dotenv = require('dotenv');
 
+dotenv.config({ path: path.join(__dirname, '..', 'backend', '.env') });
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const PROJECT_REF = 'rvndetvetovcnaievyoq';
-const DB_PASSWORD = process.env.DB_PASSWORD;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const DB_PASSWORD  = process.env.DB_PASSWORD;
+
+if (!SUPABASE_URL) {
+  console.error('Set SUPABASE_URL in backend/.env first.');
+  process.exit(1);
+}
 if (!DB_PASSWORD) {
-  console.error('Set DB_PASSWORD env var before running: $env:DB_PASSWORD="your-password"');
+  console.error('Set DB_PASSWORD env var before running: $env:DB_PASSWORD="your-database-password"');
   process.exit(1);
 }
 
-const HOSTS = [
-  `db.${PROJECT_REF}.supabase.co`,
-  `aws-0-ap-southeast-1.pooler.supabase.com`,
-];
+const PROJECT_REF = new URL(SUPABASE_URL).hostname.split('.')[0];
+const HOST = `db.${PROJECT_REF}.supabase.co`;
 
 async function run() {
-  const schemaPath = path.join(__dirname, '..', 'supabase', 'schema.sql');
-  const seedPath   = path.join(__dirname, '..', 'supabase', 'seed_dummy.sql');
-  const schema     = fs.readFileSync(schemaPath, 'utf8');
-  const seed       = fs.readFileSync(seedPath,   'utf8');
+  const schema = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8');
 
-  let lastErr = null;
+  const client = new Client({
+    host: HOST,
+    port: 5432,
+    database: 'postgres',
+    user: 'postgres',
+    password: DB_PASSWORD,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+  });
 
-  for (const host of HOSTS) {
-    const users = host.includes('pooler')
-      ? [`postgres.${PROJECT_REF}`]
-      : ['postgres'];
+  try {
+    process.stdout.write(`Connecting to ${HOST}:5432 ... `);
+    await client.connect();
+    console.log('connected!');
 
-    for (const user of users) {
-      const client = new Client({
-        host,
-        port: 5432,
-        database: 'postgres',
-        user,
-        password: DB_PASSWORD,
-        ssl: { rejectUnauthorized: false },
-        connectionTimeoutMillis: 10000,
-      });
+    console.log('Applying schema.sql ...');
+    await client.query(schema);
+    console.log('Schema applied.');
 
-      try {
-        process.stdout.write(`Trying ${user}@${host}:5432 ... `);
-        await client.connect();
-        console.log('connected!');
-
-        console.log('Applying schema.sql ...');
-        await client.query(schema);
-        console.log('Schema applied.');
-
-        console.log('Running seed_dummy.sql ...');
-        await client.query(seed);
-        console.log('Seed complete.');
-
-        await client.end();
-        console.log('\nMigration successful!');
-        return;
-      } catch (err) {
-        lastErr = err;
-        console.log(`failed: ${err.message.split('\n')[0]}`);
-        try { await client.end(); } catch {}
-      }
-    }
+    await client.end();
+    console.log('\nMigration successful! Next: node scripts/reseed_events.js');
+  } catch (err) {
+    console.log(`failed: ${err.message.split('\n')[0]}`);
+    try { await client.end(); } catch {}
+    console.error('\nFallback: paste the contents of supabase/schema.sql into the');
+    console.error('Supabase SQL Editor at https://supabase.com/dashboard, then run:');
+    console.error('  node scripts/reseed_events.js');
+    process.exit(1);
   }
-
-  console.error('\nAll connection attempts failed.');
-  console.error('Last error:', lastErr?.message);
-  console.error('\nFallback: paste supabase/schema.sql then supabase/seed_dummy.sql');
-  console.error('into the Supabase SQL Editor at https://supabase.com/dashboard');
-  process.exit(1);
 }
 
 run();

@@ -1,0 +1,17 @@
+{
+  "name": "gg-scripts",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Database setup scripts for the Green Generation ESG platform",
+  "scripts": {
+    "migrate": "node migrate.cjs",
+    "reseed": "node reseed_events.js",
+    "test": "node test_system.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.2",
+    "dotenv": "^16.4.5",
+    "pg": "^8.22.0"
+  }
+}
