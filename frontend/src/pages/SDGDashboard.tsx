@@ -16,11 +16,17 @@ const AchievementIcon = ({ status }: { status: string }) => {
 };
 
 /* ── Progress bar ─────────────────────────────────────────────────── */
-const ProgressBar = ({ pct, color }: { pct: number; color: string }) => (
-  <div className="sdg-progress-track">
-    <div className="sdg-progress-fill" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
-  </div>
-);
+const ProgressBar = ({ pct, status }: { pct: number; status: string }) => {
+  let color = 'var(--text-tertiary)';
+  if (status === STATUS.ACHIEVED) color = 'var(--success)';
+  else if (status === STATUS.PARTIAL) color = 'var(--warning)';
+
+  return (
+    <div className="sdg-progress-track">
+      <div className="sdg-progress-fill" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
+    </div>
+  );
+};
 
 /* ── Pencil icon SVG ─────────────────────────────────────────────── */
 const PencilIcon = () => (
@@ -419,8 +425,8 @@ const SDGDashboard = () => {
         {sdgs.map(sdg => (
           <div key={sdg.num} className={`glass-card sdg-card sdg-card-${sdg.status}`}>
 
-            {/* Coloured header band */}
-            <div className="sdg-header" style={{ backgroundColor: sdg.color }}>
+            {/* Header band */}
+            <div className="sdg-header">
               <span className="sdg-num">{sdg.num}</span>
               <div className="sdg-header-right">
                 <span className="sdg-name">{sdg.name}</span>
@@ -444,7 +450,7 @@ const SDGDashboard = () => {
                   {statusLabel[sdg.status]}
                 </span>
               </div>
-              <ProgressBar pct={sdg.pct} color={sdg.color} />
+              <ProgressBar pct={sdg.pct} status={sdg.status} />
               <span className="sdg-pct-label">{sdg.pct.toFixed(0)}% toward target</span>
               <p className="sdg-metric">{sdg.metric}</p>
               <p className="sdg-target">{sdg.target}</p>
@@ -462,9 +468,9 @@ const SDGDashboard = () => {
           <div className="sdg-modal" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
-            <div className="sdg-modal-header" style={{ borderBottomColor: editSdg.color }}>
+            <div className="sdg-modal-header">
               <div className="sdg-modal-title-row">
-                <span className="sdg-modal-num" style={{ backgroundColor: editSdg.color }}>
+                <span className="sdg-modal-num">
                   {editSdg.num}
                 </span>
                 <div>
