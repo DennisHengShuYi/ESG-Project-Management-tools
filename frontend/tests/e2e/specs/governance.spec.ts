@@ -23,6 +23,10 @@ test.afterAll(async () => {
 const gotoGovernance = async (page: any) => {
   await page.goto('/governance');
   await expect(page.getByRole('heading', { name: 'Corporate Governance' })).toBeVisible();
+  // The page's year-default heuristic can land on a year other than 2025
+  // (e.g. if any event exists with the current OS-clock year) — pin
+  // explicitly so these tests don't depend on which year that heuristic picks.
+  await page.locator('.header-actions select').selectOption('2025');
   await page.waitForLoadState('networkidle');
 };
 
@@ -42,17 +46,31 @@ const saveAndAcceptAlert = async (page: any) => {
 };
 
 test('FIXED: an edit made immediately after navigation (no settling wait) is not lost to the StrictMode double-fetch', async ({ page }) => {
-  // Deliberately does NOT use gotoGovernance()'s networkidle wait — this is
-  // exactly the race window the bug used to occupy.
+  // Deliberately does NOT use gotoGovernance()'s networkidle wait, and
+  // deliberately does NOT pin the year via the dropdown either — both are
+  // real async state transitions, and triggering one mid-edit would just
+  // substitute a different race for the one this test exists to guard
+  // against. Whichever year the page lands on by default, read it back
+  // from the dropdown so the assertion targets the same row that was saved.
   await page.goto('/governance');
   await expect(page.getByRole('heading', { name: 'Corporate Governance' })).toBeVisible();
 
   const value = `E2E immediate-edit ${Date.now()}`;
   await page.locator('input[name="gov_committee_name"]').fill(value);
+
+  // Snapshot whichever year the page actually landed on, right before the
+  // save lands — beforeAll only protects year 2025, but the default-year
+  // heuristic can pick a different year (e.g. if any event has the current
+  // OS-clock year), and this test deliberately doesn't pin one.
+  const year = await page.locator('.header-actions select').inputValue();
+  const preSave = await api.getGovernance(year);
+
   await saveAndAcceptAlert(page);
 
-  const gov = await api.getGovernance('2025');
+  const gov = await api.getGovernance(year);
   expect(gov.gov_committee_name).toBe(value);
+
+  await api.saveGovernance(preSave, year);
 });
 
 test('Sustainability Committee Name persists', async ({ page }) => {
@@ -60,7 +78,10 @@ test('Sustainability Committee Name persists', async ({ page }) => {
   await page.locator('input[name="gov_committee_name"]').fill(value);
   await saveAndAcceptAlert(page);
 
+  // A full reload remounts the page, which resets selectedYear back to
+  // whatever the year-default heuristic picks — re-pin to 2025.
   await page.reload();
+  await page.locator('.header-actions select').selectOption('2025');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('input[name="gov_committee_name"]')).toHaveValue(value);
 
@@ -78,7 +99,10 @@ test('Board Oversight Description is persisted wrapped in <p> tags (existing beh
   expect(gov.gov_board_oversight_text).toBe(`<p>${value}</p>`);
 
   // The page strips tags back out for display, so the textarea should show plain text on reload.
+  // A full reload remounts the page, which resets selectedYear back to
+  // whatever the year-default heuristic picks — re-pin to 2025.
   await page.reload();
+  await page.locator('.header-actions select').selectOption('2025');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('textarea').nth(0)).toHaveValue(value);
 });
@@ -87,37 +111,16 @@ test('ERM Integration Status select persists', async ({ page }) => {
   await page.locator('select[name="risk_erm_integration_status"]').selectOption('Partially Integrated');
   await saveAndAcceptAlert(page);
 
+  // A full reload remounts the page, which resets selectedYear back to
+  // whatever the year-default heuristic picks — re-pin to 2025.
   await page.reload();
+  await page.locator('.header-actions select').selectOption('2025');
   await page.waitForLoadState('networkidle');
   await expect(page.locator('select[name="risk_erm_integration_status"]')).toHaveValue('Partially Integrated');
   const gov = await api.getGovernance('2025');
   expect(gov.risk_erm_integration_status).toBe('Partially Integrated');
 });
 
-test('Climate Finance numeric fields persist and accept negative values without crashing', async ({ page }) => {
-  await page.locator('input[name="climate_transition_risk_rm"]').fill('150000');
-  await page.locator('input[name="climate_physical_risk_rm"]').fill('-500');
-  await saveAndAcceptAlert(page);
-
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-  await expect(page.locator('input[name="climate_transition_risk_rm"]')).toHaveValue('150000');
-  await expect(page.locator('input[name="climate_physical_risk_rm"]')).toHaveValue('-500');
-
-  const gov = await api.getGovernance('2025');
-  expect(gov.climate_transition_risk_rm).toBe(150000);
-  expect(gov.climate_physical_risk_rm).toBe(-500);
-});
-
-test('clearing a numeric field saves as 0, not NaN', async ({ page }) => {
-  await page.locator('input[name="climate_capex_rm"]').fill('1000');
-  await saveAndAcceptAlert(page);
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-
-  await page.locator('input[name="climate_capex_rm"]').fill('');
-  await saveAndAcceptAlert(page);
-
-  const gov = await api.getGovernance('2025');
-  expect(gov.climate_capex_rm).toBe(0);
-});
+// Climate Finance numeric-field tests (negative values, clear-saves-as-0)
+// moved to dashboard.spec.ts — those fields live on Dashboard's Climate
+// Finance tab, not on this page.

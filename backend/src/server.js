@@ -638,6 +638,26 @@ app.post('/api/events/:id/attendance', requireAuth, async (req, res) => {
 });
 
 // ── Corporate Governance (scoped) ──────────────────────────────
+// Distinct reporting years that actually have governance data — used by the
+// frontend's year-default heuristic, which must not confuse "an event exists
+// for year X" (module_events) with "governance data exists for year X"
+// (module_strategy_risk / module_hr_diversity / module_climate_finance).
+app.get('/api/governance/years', requireAuth, async (req, res) => {
+  try {
+    const [sRes, hRes, cRes] = await Promise.all([
+      supabase.from('module_strategy_risk').select('reporting_year').eq('organisation_id', req.user.organisation_id),
+      supabase.from('module_hr_diversity').select('reporting_year').eq('organisation_id', req.user.organisation_id),
+      supabase.from('module_climate_finance').select('reporting_year').eq('organisation_id', req.user.organisation_id),
+    ]);
+    const years = new Set();
+    [sRes, hRes, cRes].forEach(r => (r.data || []).forEach(row => years.add(row.reporting_year)));
+    res.json(Array.from(years));
+  } catch (err) {
+    console.error('getGovernanceYears error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/governance', requireAuth, async (req, res) => {
   try {
     const year = req.query.year || '2025';

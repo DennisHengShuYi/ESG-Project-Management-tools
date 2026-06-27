@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
-import { getCorporateGovernance, saveCorporateGovernance } from '../utils/db';
+import { getGovernanceYears, getCorporateGovernance, saveCorporateGovernance } from '../utils/db';
 import { Save } from 'lucide-react';
+import { useReportingYear } from '../hooks/useReportingYear';
 import './Governance.css';
 
 const Governance = () => {
   const [formData, setFormData] = useState(null);
+  const [governanceYears, setGovernanceYears] = useState<string[]>([]);
+  // Years are sourced from the governance tables themselves, not from
+  // module_events — an event can exist for a year with no governance data
+  // saved at all (and vice versa), so event-existence is the wrong signal
+  // for "should the page default to this year".
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(governanceYears);
+
+  useEffect(() => {
+    getGovernanceYears().then(setGovernanceYears);
+  }, []);
 
   useEffect(() => {
     // Guards against React.StrictMode's dev-mode double-invoke: without this,
@@ -12,12 +23,12 @@ const Governance = () => {
     // formData — silently discarding an edit made in the gap between them.
     let active = true;
     const load = async () => {
-      const data = await getCorporateGovernance();
+      const data = await getCorporateGovernance(selectedYear);
       if (active) setFormData(data);
     };
     load();
     return () => { active = false; };
-  }, []);
+  }, [selectedYear]);
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
@@ -30,7 +41,7 @@ const Governance = () => {
   };
 
   const handleSave = async () => {
-    const result = await saveCorporateGovernance(formData);
+    const result = await saveCorporateGovernance(formData, selectedYear);
     if (result.success) {
       alert('Corporate Governance data saved successfully.');
     } else {
@@ -47,9 +58,14 @@ const Governance = () => {
           <h2>Corporate Governance</h2>
           <p className="text-secondary">IFRS S1 narrative disclosures — Governance, Strategy, Risk Management and Targets.</p>
         </div>
-        <button className="btn btn-primary" onClick={handleSave}>
-          <Save size={18} /> Save Data
-        </button>
+        <div className="header-actions">
+          <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+            {availableYears.map(y => <option key={y} value={y}>{`FYE ${y}`}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={handleSave}>
+            <Save size={18} /> Save Data
+          </button>
+        </div>
       </div>
 
       <div className="gov-grid">

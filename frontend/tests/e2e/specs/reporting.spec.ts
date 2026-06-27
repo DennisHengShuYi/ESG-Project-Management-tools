@@ -30,11 +30,11 @@ test('FIXED: completeness now requires actual reported data, not just an event e
 
   await page.locator('select').first().selectOption('2096');
   await expect(page.getByText('Data Complete')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Export PDF' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export Summary (CSV)' })).toBeEnabled();
 
   await page.locator('select').first().selectOption('2095');
   await expect(page.getByText('Missing Mandatory Data')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Export PDF' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export Summary (CSV)' })).toBeDisabled();
 
   await api.deleteEvent(complete.id);
   await api.deleteEvent(incomplete.id);

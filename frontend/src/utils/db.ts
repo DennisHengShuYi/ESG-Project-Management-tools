@@ -195,6 +195,21 @@ export const saveEventAttendance = async (eventId: string, flat: any) => {
   }
 };
 
+export const getGovernanceYears = async (): Promise<string[]> => {
+  try {
+    const headers = await getHeaders(true);
+    const res = await apiFetch(`${API_URL}/api/governance/years`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error('getGovernanceYears error:', error);
+    return [];
+  }
+};
+
 export const getCorporateGovernance = async (year = '2025') => {
   try {
     const headers = await getHeaders(true);

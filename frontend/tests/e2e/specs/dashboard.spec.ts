@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { api } from '../utils/api';
 import { waitForChartAnimation } from '../utils/chart-wait';
 import { collectConsoleErrors } from '../utils/console-errors';
-import { metricValue, fillEditField, startEdit, saveEdit } from '../utils/editable-module';
+import { metricValue, fillEditField, editFieldInput, startEdit, saveEdit } from '../utils/editable-module';
 import { sparkValue } from '../utils/metric-spark-grid';
 
 const gotoTab = async (page: any, label: string) => {
@@ -105,6 +105,7 @@ test.describe('Climate Finance & HR Diversity edits — shared org/2025 data, sn
 
   test('editing Climate Mitigation Capital persists to organisation_id+2025', async ({ page }) => {
     await page.goto('/');
+    await page.locator('.year-selector select').selectOption('2025');
     await gotoTab(page, 'Climate Finance');
     await startEdit(page);
     await fillEditField(page, 'Climate Mitigation Capital', '320000');
@@ -117,6 +118,7 @@ test.describe('Climate Finance & HR Diversity edits — shared org/2025 data, sn
 
   test('editing Anti-Corruption Training Coverage persists', async ({ page }) => {
     await page.goto('/');
+    await page.locator('.year-selector select').selectOption('2025');
     await gotoTab(page, 'Enterprise HR & Diversity');
     await startEdit(page);
     await fillEditField(page, 'Anti-Corruption Training Coverage', '77');
@@ -125,5 +127,46 @@ test.describe('Climate Finance & HR Diversity edits — shared org/2025 data, sn
     await expect(metricValue(page, 'Anti-Corruption Training Coverage')).toHaveText('77 %');
     const gov = await api.getGovernance('2025');
     expect(gov.anticorrupt_training_coverage).toBe(77);
+  });
+
+  // Moved from governance.spec.ts: climate finance fields live on Dashboard's
+  // Climate Finance tab, not the Governance page — Governance.tsx never had
+  // these inputs in the current page structure.
+  test('Climate Finance numeric fields persist and accept negative values without crashing', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.year-selector select').selectOption('2025');
+    await gotoTab(page, 'Climate Finance');
+    await startEdit(page);
+    await fillEditField(page, 'Transition Risk Exposure', '150000');
+    await fillEditField(page, 'Acute Physical Risk Exposure', '-500');
+    await saveEdit(page);
+
+    await expect(metricValue(page, 'Transition Risk Exposure')).toHaveText('150,000 RM');
+    await expect(metricValue(page, 'Acute Physical Risk Exposure')).toHaveText('-500 RM');
+
+    const gov = await api.getGovernance('2025');
+    expect(gov.climate_transition_risk_rm).toBe(150000);
+    expect(gov.climate_physical_risk_rm).toBe(-500);
+  });
+
+  test('clearing a Climate Finance numeric field saves as 0, not NaN', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.year-selector select').selectOption('2025');
+    await gotoTab(page, 'Climate Finance');
+    await startEdit(page);
+    await fillEditField(page, 'Climate Mitigation Capital', '1000');
+    await saveEdit(page);
+
+    await startEdit(page);
+    // EditableModule's handleChange coerces an empty numeric value to 0
+    // immediately via `parseFloat(value) || 0`, so the input never actually
+    // shows '' here — assert against '0' rather than using fillEditField.
+    const input = editFieldInput(page, 'Climate Mitigation Capital');
+    await input.fill('');
+    await expect(input).toHaveValue('0');
+    await saveEdit(page);
+
+    const gov = await api.getGovernance('2025');
+    expect(gov.climate_capex_rm).toBe(0);
   });
 });

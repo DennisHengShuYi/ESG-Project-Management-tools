@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getEventsFull } from '../utils/db';
+import { getEventsFull, getCorporateGovernance, CSV_FIELDS } from '../utils/db';
 import { FileText, Download, CheckCircle, XCircle } from 'lucide-react';
 import { useReportingYear } from '../hooks/useReportingYear';
 import './Reporting.css';
@@ -11,9 +11,62 @@ import './Reporting.css';
 // pass this check.
 const MANDATORY_PILLAR_FIELDS = ['total_energy_mwh', 'man_hours_actual', 'procurement_total_rm', 'budget_actual'];
 
+const IFRS_NARRATIVE_FIELDS: [string, string][] = [
+  ['gov_committee_name', 'Sustainability Committee Name'],
+  ['gov_meeting_frequency', 'Committee Meeting Frequency'],
+  ['gov_board_oversight_text', 'Board Oversight Description'],
+  ['gov_executive_accountability_text', 'Executive Accountability'],
+  ['gov_strategy_integration_text', 'Sustainability Strategy Integration'],
+  ['strategy_short_text', 'Short-Term Risks (0-1 year)'],
+  ['strategy_medium_text', 'Medium-Term Risks (1-5 years)'],
+  ['strategy_long_text', 'Long-Term Risks (5+ years)'],
+  ['scenario_analysis_text', 'Climate Scenario Analysis'],
+  ['risk_identification_text', 'Risk Identification Process'],
+  ['risk_assessment_text', 'Risk Assessment Methodology'],
+  ['risk_erm_integration_status', 'ERM Integration Status'],
+];
+
+const IFRS_CLIMATE_FIELDS: [string, string][] = [
+  ['climate_transition_risk_rm', 'Transition Risk Exposure (RM)'],
+  ['climate_physical_risk_rm', 'Acute Physical Risk Exposure (RM)'],
+  ['climate_chronic_risk_rm', 'Chronic Physical Risk Exposure (RM)'],
+  ['climate_capex_rm', 'Climate Mitigation Capital (RM)'],
+  ['internal_carbon_price', 'Internal Carbon Shadow Pricing (RM/tCO2e)'],
+  ['exec_climate_remun_pct', 'Executive Remuneration Linkage (%)'],
+  ['fin_position_impact_rm', 'Financial Position Impact (RM)'],
+];
+
+// Indicative GRI Topic Standard groupings per module — top-level topic
+// numbers only (e.g. GRI 302 Energy), not granular disclosure sub-codes.
+const GRI_TOPIC_BY_MODULE: Record<string, string> = {
+  'Green Ops': 'GRI 302/303/305/306 (Energy, Water, Emissions, Waste)',
+  'Health, Safety & Labour': 'GRI 401/403/404/405/406 (Employment, OH&S, Training, Diversity, Non-discrimination)',
+  'Procurement & Community': 'GRI 204/413/418 (Procurement, Local Communities, Customer Privacy)',
+  'Financial': 'GRI 201 (Economic Performance)',
+  'Timeline & Team': 'GRI 2 (General Disclosures)',
+  'Attendance': 'GRI 2 (General Disclosures)',
+};
+
+const escapeCsv = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+const stripHtml = (v: any) => String(v ?? '').replace(/<[^>]*>?/gm, '');
+
+const downloadCsv = (filename: string, header: string, rows: string[]) => {
+  const csv = header + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 const Reporting = () => {
   const [events, setEvents] = useState([]);
-  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events);
+  const [corp, setCorp] = useState<any>({});
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events.map((e: any) => e.reporting_year));
 
   useEffect(() => {
     let active = true;
@@ -25,9 +78,53 @@ const Reporting = () => {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    getCorporateGovernance(selectedYear).then(setCorp);
+  }, [selectedYear]);
+
   const currentEvents = events.filter(e => e.reporting_year === selectedYear);
   const isComplete = currentEvents.length > 0
     && MANDATORY_PILLAR_FIELDS.every(field => currentEvents.some((e: any) => Number(e[field]) > 0));
+
+  const handleExportSummary = () => {
+    const header = 'Module,Metric,Total Value\n';
+    const rows = CSV_FIELDS.map(({ key, label, module }) => {
+      const total = currentEvents.reduce((a, e: any) => a + (Number(e[key]) || 0), 0);
+      return [module, label, total].map(escapeCsv).join(',');
+    });
+    downloadCsv(`bursa_sustainability_statement_FYE${selectedYear}.csv`, header, rows);
+  };
+
+  const handleExportPerEvent = () => {
+    const header = 'Event,Module,Metric,Value\n';
+    const rows: string[] = [];
+    currentEvents.forEach((e: any) => {
+      CSV_FIELDS.forEach(({ key, label, module }) => {
+        rows.push([e.event_name, module, label, e[key] ?? ''].map(escapeCsv).join(','));
+      });
+    });
+    downloadCsv(`bursa_csi_per_event_FYE${selectedYear}.csv`, header, rows);
+  };
+
+  const handleExportIfrsPackage = () => {
+    const header = 'Section,Field,Value\n';
+    const narrativeRows = IFRS_NARRATIVE_FIELDS.map(([key, label]) =>
+      ['IFRS S1 — Governance/Strategy/Risk', label, stripHtml(corp[key])].map(escapeCsv).join(',')
+    );
+    const climateRows = IFRS_CLIMATE_FIELDS.map(([key, label]) =>
+      ['IFRS S2 — Climate Finance', label, corp[key] ?? 0].map(escapeCsv).join(',')
+    );
+    downloadCsv(`ifrs_s1_s2_package_FYE${selectedYear}.csv`, header, [...narrativeRows, ...climateRows]);
+  };
+
+  const handleExportGri = () => {
+    const header = 'GRI Topic Standard,Module,Metric,Total Value\n';
+    const rows = CSV_FIELDS.map(({ key, label, module }) => {
+      const total = currentEvents.reduce((a, e: any) => a + (Number(e[key]) || 0), 0);
+      return [GRI_TOPIC_BY_MODULE[module] || 'GRI 2 (General Disclosures)', module, label, total].map(escapeCsv).join(',');
+    });
+    downloadCsv(`gri_index_FYE${selectedYear}.csv`, header, rows);
+  };
 
   return (
     <div className="reporting-container animate-fade-in">
@@ -60,8 +157,8 @@ const Reporting = () => {
           </div>
           
           <div className="report-actions">
-            <button className="btn btn-primary" disabled={!isComplete}><Download size={16}/> Export PDF</button>
-            <button className="btn btn-secondary" disabled={!isComplete}><Download size={16}/> Export Excel (CSI)</button>
+            <button className="btn btn-primary" disabled={!isComplete} onClick={handleExportSummary}><Download size={16}/> Export Summary (CSV)</button>
+            <button className="btn btn-secondary" disabled={!isComplete} onClick={handleExportPerEvent}><Download size={16}/> Export Per-Event (CSV)</button>
           </div>
         </div>
 
@@ -77,7 +174,7 @@ const Reporting = () => {
           </div>
           
           <div className="report-actions">
-            <button className="btn btn-primary"><Download size={16}/> Export Full Package (PDF)</button>
+            <button className="btn btn-primary" onClick={handleExportIfrsPackage}><Download size={16}/> Export Full Package (CSV)</button>
           </div>
         </div>
 
@@ -93,7 +190,7 @@ const Reporting = () => {
           </div>
           
           <div className="report-actions">
-            <button className="btn btn-primary"><Download size={16}/> Export GRI Index (PDF)</button>
+            <button className="btn btn-primary" onClick={handleExportGri}><Download size={16}/> Export GRI Index (CSV)</button>
           </div>
         </div>
       </div>

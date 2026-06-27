@@ -28,9 +28,26 @@ const CLIMATE_FINANCE_FIELDS = [
   { key: 'fin_position_impact_pct',     label: 'Financial Position Impact (%)',   unit: '%' },
 ];
 
+// Female/male % are derived from real headcounts rather than typed by hand —
+// the underlying board_female_pct/board_male_pct DB columns predate the
+// emp_*/board_* headcount columns and are no longer written to from this UI.
+const pctOf = (numKey: string, denKey: string) => (d: any) => {
+  const den = Number(d[denKey]) || 0;
+  if (den <= 0) return '—';
+  return `${((Number(d[numKey]) || 0) / den * 100).toFixed(1)}%`;
+};
+
 const HR_DIVERSITY_FIELDS = [
-  { key: 'board_male_pct',                label: 'Board — Male',                       unit: '%' },
-  { key: 'board_female_pct',              label: 'Board — Female',                     unit: '%' },
+  { key: 'emp_total',                     label: 'Workforce — Total Employees',        type: 'number' },
+  { key: 'emp_female',                    label: 'Workforce — Female Headcount',       type: 'number' },
+  { key: 'emp_male',                      label: 'Workforce — Male Headcount',         type: 'number' },
+  { key: 'emp_female_pct',                label: 'Workforce — Female %',                readOnly: true, compute: pctOf('emp_female', 'emp_total') },
+  { key: 'emp_male_pct',                  label: 'Workforce — Male %',                  readOnly: true, compute: pctOf('emp_male', 'emp_total') },
+  { key: 'board_total',                   label: 'Board — Total Members',              type: 'number' },
+  { key: 'board_female',                  label: 'Board — Female Headcount',           type: 'number' },
+  { key: 'board_male',                    label: 'Board — Male Headcount',             type: 'number' },
+  { key: 'board_female_pct',              label: 'Board — Female %',                    readOnly: true, compute: pctOf('board_female', 'board_total') },
+  { key: 'board_male_pct',                label: 'Board — Male %',                      readOnly: true, compute: pctOf('board_male', 'board_total') },
   { key: 'board_under30_pct',             label: 'Age Profile — Under 30',             unit: '%' },
   { key: 'board_30to50_pct',              label: 'Age Profile — 30 to 50',             unit: '%' },
   { key: 'board_over50_pct',              label: 'Age Profile — Over 50',              unit: '%' },
@@ -48,16 +65,16 @@ const agg = (key, label, unit) => ({ key, label, unit, readOnly: true });
 const Dashboard = () => {
   const [events, setEvents]   = useState([]);
   const [corp, setCorp]       = useState<any>({});
-  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events);
+  const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events.map((e: any) => e.reporting_year));
   const [activeTab, setActiveTab]       = useState('green-ops');
 
   useEffect(() => {
-    const load = async () => {
-      setEvents(await getEventsFull());
-      setCorp(await getCorporateGovernance());
-    };
-    load();
+    getEventsFull().then(setEvents);
   }, []);
+
+  useEffect(() => {
+    getCorporateGovernance(selectedYear).then(setCorp);
+  }, [selectedYear]);
 
   const yearEvents = events.filter(e => e.reporting_year === selectedYear);
   const n = yearEvents.length || 1;
@@ -180,9 +197,10 @@ const Dashboard = () => {
     'LTIR': +(e.ltir || 0).toFixed(2),
   }));
 
-  const diversityData = corp.board_male_pct != null ? [
-    { name: 'Male',   value: +(corp.board_male_pct || 0),   fill: C.blue },
-    { name: 'Female', value: +(corp.board_female_pct || 0), fill: C.pink },
+  const boardTotal = Number(corp.board_total) || 0;
+  const diversityData = boardTotal > 0 ? [
+    { name: 'Male',   value: (Number(corp.board_male)   || 0) / boardTotal * 100, fill: C.blue },
+    { name: 'Female', value: (Number(corp.board_female) || 0) / boardTotal * 100, fill: C.pink },
   ] : [];
 
   const ageData = corp.board_under30_pct != null ? [
@@ -194,7 +212,7 @@ const Dashboard = () => {
   /* ── Corp save handler ─────────────────────────────────────────── */
   const handleCorpSave = async (updatedFields) => {
     const updated = { ...corp, ...updatedFields };
-    await saveCorporateGovernance(updated);
+    await saveCorporateGovernance(updated, selectedYear);
     setCorp(updated);
   };
 

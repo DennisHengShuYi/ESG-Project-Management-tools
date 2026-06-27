@@ -175,11 +175,7 @@ const renderGreenOpsCharts = (event: any) => {
 
   return (
     <>
-      <div className="kpi-grid">
-        <KpiCard label="Energy Consumption" value={`${totalEnergy.toLocaleString()} MWh`} color={C.amber} />
-        <KpiCard label="Water Consumption" value={`${(Number(event.total_water_m3) || 0).toLocaleString()} m³`} color={C.blue} />
-        <KpiCard label="Surplus Food Recovery" value={`${(Number(event.food_recovery_kg) || 0).toLocaleString()} kg`} color={C.green} />
-      </div>
+
       <div className="charts-row">
         <div className="chart-card glass-card">
           <h4 className="chart-title">Scope 1 / 2 / 3 Emissions (tCO₂e)</h4>
@@ -236,13 +232,7 @@ const renderHealthCharts = (event: any) => {
 
   return (
     <>
-      <div className="kpi-grid">
-        <KpiCard label="Work-Related Fatalities" value={Number(event.fatalities_count) || 0} severity />
-        <KpiCard label="LTIR" value={(Number(event.ltir) || 0).toFixed(4)} color={C.red} />
-        <KpiCard label="Human Rights Complaints" value={Number(event.hr_complaints_count) || 0} severity />
-        <KpiCard label="Employee Training Hours" value={(Number(event.training_hours_total) || 0).toLocaleString()} color={C.teal} />
-        <KpiCard label="Employee Turnover Headcount" value={Number(event.turnover_count) || 0} color={C.amber} />
-      </div>
+
       <div className="charts-row">
         <div className="chart-card glass-card">
           <h4 className="chart-title">Safety Training Coverage (toward 100% target)</h4>
@@ -267,11 +257,7 @@ const renderProcurementCharts = (event: any) => {
 
   return (
     <>
-      <div className="kpi-grid">
-        <KpiCard label="Community Investment" value={`RM ${(Number(event.community_invest_rm) || 0).toLocaleString()}`} color={C.green} />
-        <KpiCard label="Community Beneficiaries" value={Number(event.community_beneficiaries) || 0} color={C.blue} />
-        <KpiCard label="Substantiated Privacy Breaches" value={Number(event.data_breach_complaints) || 0} severity />
-      </div>
+
       <div className="charts-row">
         <div className="chart-card glass-card">
           <h4 className="chart-title">Local Supplier Spend (RM)</h4>
@@ -301,18 +287,7 @@ const renderFinancialCharts = (event: any) => {
 
   return (
     <>
-      <div className="kpi-grid">
-        <KpiCard
-          label="Budget Variance & Utilisation"
-          value={`RM ${budgetVariance.toLocaleString()} (${utilisation}% utilised)`}
-          color={budgetVariance >= 0 ? C.green : C.red}
-        />
-        <KpiCard
-          label="Net Profit / Loss & ROI"
-          value={`RM ${Math.abs(netProfit).toLocaleString()} (${roi}% ROI)`}
-          color={netProfit >= 0 ? C.green : C.red}
-        />
-      </div>
+
       <div className="charts-row">
         <div className="chart-card glass-card">
           <h4 className="chart-title">Estimated Budget vs Actual Cost (RM)</h4>
@@ -354,10 +329,7 @@ const renderTimelineCharts = (event: any) => {
 
   return (
     <>
-      <div className="kpi-grid">
-        <KpiCard label="Schedule Variance" value={scheduleVarianceLabel} color={C.amber} />
-        <KpiCard label="Total Team Size" value={Number(event.team_size_total) || 0} color={C.blue} />
-      </div>
+
       <div className="charts-row">
         <div className="chart-card glass-card">
           <h4 className="chart-title">On-Time Delivery Rate (toward 100% target)</h4>

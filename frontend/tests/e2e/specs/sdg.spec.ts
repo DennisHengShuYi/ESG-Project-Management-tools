@@ -46,7 +46,7 @@ test('SDG 3 (Good Health): zero fatalities and zero LTIR for the period is marke
   await page.locator('select').first().selectOption(YEAR);
 
   const card = page.locator('.sdg-card').filter({ has: page.getByText('Good Health & Well-being') });
-  await expect(card.getByText('LTIR = 0, Zero fatalities')).toBeVisible();
+  await expect(card.getByText('LTIR within threshold, Zero fatalities')).toBeVisible();
   await expect(card.getByText('Achieved', { exact: true })).toBeVisible();
 
   await api.deleteEvent(created.id);

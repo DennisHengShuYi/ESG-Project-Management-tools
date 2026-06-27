@@ -6,7 +6,7 @@
 
 .gov-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
@@ -23,7 +23,31 @@
   margin-bottom: 0.5rem;
 }
 
+.gov-section .input-field {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .form-group textarea {
   resize: vertical;
   min-height: 80px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.form-group textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.form-group textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.form-group textarea::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: var(--border-radius-full, 999px);
+}
+
+.form-group textarea::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary-color);
 }
