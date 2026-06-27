@@ -65,10 +65,8 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* Status-based left border accent */
-.sdg-card-achieved   { border-left: 3px solid #10B981; }
-.sdg-card-partial    { border-left: 3px solid #F59E0B; }
-.sdg-card-not_started { border-left: 3px solid var(--border-color); opacity: 0.75; }
+/* Status-based opacity settings if needed, or leave clean */
+.sdg-card-not_started { opacity: 0.75; }
 
 /* ── Card header (coloured band) ────────────────────────────────── */
 .sdg-header {
