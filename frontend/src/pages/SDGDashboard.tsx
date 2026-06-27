@@ -100,17 +100,30 @@ const SDGDashboard = () => {
   /* ── Configurable thresholds (loaded from app_settings) ────────────
      Each key maps 1-to-1 to a field in the JSONB settings blob.
      Default values are the fallback when the user hasn't configured yet. */
+  const isRequired = (val: any, defaultVal = 1) => {
+    if (val === undefined || val === null) return defaultVal === 1;
+    return Number(val) === 1;
+  };
+
   const T = {
-    ltir:            Number(settings.ltir_threshold)             || 0.5,
-    renewable:       Number(settings.renewable_target_pct)       || 30,
-    water:           Number(settings.water_intensity_target_m3)  || 200,
-    boardFemale:     Number(settings.board_female_target_pct)    || 30,
-    wasteDiv:        Number(settings.waste_diversion_target_pct) || 50,
-    corruptTrain:    Number(settings.corrupt_training_target_pct)|| 95,
-    localSupplier:   Number(settings.local_supplier_target_pct)  || 50,
-    communityInvest: Number(settings.community_invest_target_rm) || 10000,
-    scope12Target:   Number(settings.scope12_target_tco2e)       || 100,
-    hrComplaints:    Number(settings.hr_complaint_target)        || 0,
+    ltir:            settings.ltir_threshold !== undefined && settings.ltir_threshold !== null ? Number(settings.ltir_threshold) : 0.5,
+    fatalities:      settings.fatalities_threshold !== undefined && settings.fatalities_threshold !== null ? Number(settings.fatalities_threshold) : 0,
+    renewable:       settings.renewable_target_pct !== undefined && settings.renewable_target_pct !== null ? Number(settings.renewable_target_pct) : 30,
+    water:           settings.water_intensity_target_m3 !== undefined && settings.water_intensity_target_m3 !== null ? Number(settings.water_intensity_target_m3) : 200,
+    boardFemale:     settings.board_female_target_pct !== undefined && settings.board_female_target_pct !== null ? Number(settings.board_female_target_pct) : 30,
+    wasteDiv:        settings.waste_diversion_target_pct !== undefined && settings.waste_diversion_target_pct !== null ? Number(settings.waste_diversion_target_pct) : 50,
+    corruptTrain:    settings.corrupt_training_target_pct !== undefined && settings.corrupt_training_target_pct !== null ? Number(settings.corrupt_training_target_pct) : 95,
+    localSupplier:   settings.local_supplier_target_pct !== undefined && settings.local_supplier_target_pct !== null ? Number(settings.local_supplier_target_pct) : 50,
+    communityInvest: settings.community_invest_target_rm !== undefined && settings.community_invest_target_rm !== null ? Number(settings.community_invest_target_rm) : 10000,
+    scope12Target:   settings.scope12_target_tco2e !== undefined && settings.scope12_target_tco2e !== null ? Number(settings.scope12_target_tco2e) : 100,
+    hrComplaints:    settings.hr_complaint_target !== undefined && settings.hr_complaint_target !== null ? Number(settings.hr_complaint_target) : 0,
+    corruptionIncidents: settings.corruption_incident_threshold !== undefined && settings.corruption_incident_threshold !== null ? Number(settings.corruption_incident_threshold) : 0,
+    privacyBreaches: settings.privacy_breach_threshold !== undefined && settings.privacy_breach_threshold !== null ? Number(settings.privacy_breach_threshold) : 0,
+    climateScenarioRequired: isRequired(settings.climate_scenario_required, 1),
+    climateFinanceRequired:  isRequired(settings.climate_finance_required, 1),
+    govOversightRequired:    isRequired(settings.gov_oversight_required, 1),
+    execAccountRequired:     isRequired(settings.exec_accountability_required, 1),
+    ermIntegrationRequired:  isRequired(settings.erm_integration_required, 1),
   };
 
   const ltirOk = T.ltir > 0 ? avgLtir <= T.ltir : avgLtir === 0;
@@ -123,18 +136,23 @@ const SDGDashboard = () => {
     {
       num: 3, name: 'Good Health & Well-being', color: '#4C9F38',
       target: '3.9 Reduce deaths from pollution | 3.4 Decent work, safe environments',
-      metric: ltirOk && totalFatalities === 0
-        ? `LTIR within threshold (≤${T.ltir}), Zero fatalities`
-        : `LTIR: ${avgLtir.toFixed(2)} (threshold ${T.ltir}) | Fatalities: ${totalFatalities}`,
-      status: totalFatalities === 0 && ltirOk
+      metric: ltirOk && totalFatalities <= T.fatalities
+        ? `LTIR within threshold (≤${T.ltir}), Fatalities within threshold (≤${T.fatalities})`
+        : `LTIR: ${avgLtir.toFixed(2)} (threshold ${T.ltir}) | Fatalities: ${totalFatalities} (threshold ${T.fatalities})`,
+      status: totalFatalities <= T.fatalities && ltirOk
         ? STATUS.ACHIEVED
-        : totalFatalities === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalFatalities === 0 ? (ltirOk ? 100 : 55) : 15,
+        : totalFatalities <= T.fatalities ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: totalFatalities <= T.fatalities ? (ltirOk ? 100 : 55) : 15,
       thresholdFields: [
         {
           key: 'ltir_threshold', label: 'Max LTIR Rate', type: 'number',
           unit: 'rate', min: 0, max: 10, step: 0.01, default: 0.5,
           hint: 'Maximum acceptable Lost-Time Injury Rate per 200,000 hrs worked. Events must average ≤ this to be Achieved.',
+        },
+        {
+          key: 'fatalities_threshold', label: 'Max Fatalities Allowed', type: 'number',
+          unit: 'count', min: 0, max: 10, step: 1, default: 0,
+          hint: 'Maximum number of work-related fatalities tolerated for Achieved status.',
         },
       ],
     },
@@ -144,16 +162,21 @@ const SDGDashboard = () => {
       num: 5, name: 'Gender Equality', color: '#FF3A21',
       target: '5.5 Women\'s participation & leadership | 5.1 End gender discrimination',
       metric: hasBoardData
-        ? `${boardFemalePct.toFixed(1)}% female board (target ≥${T.boardFemale}%) | HR complaints: ${totalHrComplaints}`
+        ? `${boardFemalePct.toFixed(1)}% female board (target ≥${T.boardFemale}%) | HR complaints: ${totalHrComplaints} (target ≤${T.hrComplaints})`
         : 'Board diversity not tracked',
       status: !hasBoardData ? STATUS.NOT_STARTED
-        : boardFemalePct >= T.boardFemale && totalHrComplaints === 0 ? STATUS.ACHIEVED : STATUS.PARTIAL,
-      pct: hasBoardData ? Math.min(100, Math.min(80, (boardFemalePct / T.boardFemale) * 80) + (totalHrComplaints === 0 ? 20 : 0)) : 0,
+        : boardFemalePct >= T.boardFemale && totalHrComplaints <= T.hrComplaints ? STATUS.ACHIEVED : STATUS.PARTIAL,
+      pct: hasBoardData ? Math.min(100, Math.min(80, (boardFemalePct / T.boardFemale) * 80) + (totalHrComplaints <= T.hrComplaints ? 20 : 0)) : 0,
       thresholdFields: [
         {
           key: 'board_female_target_pct', label: 'Female Board Representation Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 30,
           hint: 'Minimum % of board seats held by women to qualify as Achieved.',
+        },
+        {
+          key: 'hr_complaint_target', label: 'Max HR Complaints Allowed', type: 'number',
+          unit: 'count', min: 0, max: 50, step: 1, default: 0,
+          hint: 'Maximum total HR / human-rights complaints tolerated to qualify as Achieved.',
         },
       ],
     },
@@ -201,12 +224,12 @@ const SDGDashboard = () => {
     {
       num: 8, name: 'Decent Work & Economic Growth', color: '#A21942',
       target: '8.5 Full & productive employment | 8.8 Safe working environments | 8.7 Ethical labour',
-      metric: `Fatalities: ${totalFatalities} | HR complaints: ${totalHrComplaints} | Training: ${totalTraining.toLocaleString()} hrs | Local suppliers: ${avgLocalSupplier.toFixed(1)}% (target ≥${T.localSupplier}%)`,
-      status: totalFatalities === 0 && totalHrComplaints <= T.hrComplaints && avgLocalSupplier >= T.localSupplier
+      metric: `Fatalities: ${totalFatalities} (target ≤${T.fatalities}) | HR complaints: ${totalHrComplaints} (target ≤${T.hrComplaints}) | Training: ${totalTraining.toLocaleString()} hrs | Local suppliers: ${avgLocalSupplier.toFixed(1)}% (target ≥${T.localSupplier}%)`,
+      status: totalFatalities <= T.fatalities && totalHrComplaints <= T.hrComplaints && avgLocalSupplier >= T.localSupplier
         ? STATUS.ACHIEVED
-        : totalFatalities === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalFatalities === 0
-        ? Math.min(100, (totalHrComplaints === 0 ? 40 : 20) + Math.min(60, (avgLocalSupplier / T.localSupplier) * 60))
+        : totalFatalities <= T.fatalities ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: totalFatalities <= T.fatalities
+        ? Math.min(100, (totalHrComplaints <= T.hrComplaints ? 40 : 20) + Math.min(60, (avgLocalSupplier / T.localSupplier) * 60))
         : 10,
       thresholdFields: [
         {
@@ -219,6 +242,11 @@ const SDGDashboard = () => {
           unit: 'count', min: 0, max: 50, step: 1, default: 0,
           hint: 'Maximum total HR / human-rights complaints tolerated across all events.',
         },
+        {
+          key: 'fatalities_threshold', label: 'Max Fatalities Allowed', type: 'number',
+          unit: 'count', min: 0, max: 10, step: 1, default: 0,
+          hint: 'Maximum number of work-related fatalities tolerated for Achieved status.',
+        },
       ],
     },
 
@@ -226,13 +254,13 @@ const SDGDashboard = () => {
     {
       num: 10, name: 'Reduced Inequalities', color: '#DD1367',
       target: '10.3 Equal opportunity | 10.2 Social inclusion',
-      metric: totalHrComplaints === 0
-        ? `Zero discrimination complaints | ${hasBoardData ? `${boardFemalePct.toFixed(1)}% female board` : 'Board diversity not tracked'} | Community: RM ${totalCommunity.toLocaleString()}`
-        : `${totalHrComplaints} HR complaint(s)`,
-      status: totalHrComplaints === 0 && hasBoardData && totalCommunity >= T.communityInvest
+      metric: totalHrComplaints <= T.hrComplaints
+        ? `Discrimination complaints ≤${T.hrComplaints} | ${hasBoardData ? `${boardFemalePct.toFixed(1)}% female board` : 'Board diversity not tracked'} | Community: RM ${totalCommunity.toLocaleString()}`
+        : `${totalHrComplaints} HR complaint(s) (target ≤${T.hrComplaints})`,
+      status: totalHrComplaints <= T.hrComplaints && hasBoardData && totalCommunity >= T.communityInvest
         ? STATUS.ACHIEVED
-        : totalHrComplaints === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalHrComplaints === 0
+        : totalHrComplaints <= T.hrComplaints ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: totalHrComplaints <= T.hrComplaints
         ? Math.min(100, (hasBoardData ? 40 : 20) + Math.min(60, (totalCommunity / T.communityInvest) * 60))
         : 5,
       thresholdFields: [
@@ -240,6 +268,11 @@ const SDGDashboard = () => {
           key: 'community_invest_target_rm', label: 'Community Investment Target', type: 'number',
           unit: 'RM', min: 0, max: 1000000, step: 1000, default: 10000,
           hint: 'Minimum total community investment (RM) across events in the year to count as Achieved.',
+        },
+        {
+          key: 'hr_complaint_target', label: 'Max HR Complaints Allowed', type: 'number',
+          unit: 'count', min: 0, max: 50, step: 1, default: 0,
+          hint: 'Maximum total discrimination/HR complaints tolerated to qualify as Achieved.',
         },
       ],
     },
@@ -251,15 +284,24 @@ const SDGDashboard = () => {
       metric: totalWasteKg > 0
         ? `${(totalWasteKg/1000).toFixed(2)} t waste | ${avgDivertedPct.toFixed(1)}% diverted (target ≥${T.wasteDiv}%) | Community inv: RM ${totalCommunity.toLocaleString()}`
         : 'Waste not tracked',
-      status: avgDivertedPct >= T.wasteDiv && hasClimateScenario
+      status: avgDivertedPct >= T.wasteDiv && (!T.climateScenarioRequired || hasClimateScenario)
         ? STATUS.ACHIEVED
         : totalWasteKg > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalWasteKg > 0 ? Math.min(100, Math.min(60, (avgDivertedPct / T.wasteDiv) * 60) + (hasClimateScenario ? 40 : 0)) : 0,
+      pct: totalWasteKg > 0 ? Math.min(100, Math.min(60, (avgDivertedPct / T.wasteDiv) * 60) + ((!T.climateScenarioRequired || hasClimateScenario) ? 40 : 0)) : 0,
       thresholdFields: [
         {
           key: 'waste_diversion_target_pct', label: 'Waste Diversion Rate Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 50,
-          hint: 'Minimum % of waste diverted from landfill (recycled, composted, recovered). Combined with Climate Scenario presence for Achieved status.',
+          hint: 'Minimum % of waste diverted from landfill (recycled, composted, recovered) to count as Achieved.',
+        },
+        {
+          key: 'climate_scenario_required', label: 'Climate Scenario Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require Climate Scenario Analysis to be completed for Achieved status.',
         },
       ],
     },
@@ -290,20 +332,41 @@ const SDGDashboard = () => {
       metric: totalScope123 > 0
         ? `${totalScope123.toFixed(2)} tCO₂e (target ≤${T.scope12Target} tCO₂e Sc1+2) | Scenario: ${hasClimateScenario ? '✓' : '✗'} | Finance: ${hasClimateFinance ? '✓' : '✗'}`
         : 'Emissions not tracked',
-      status: totalScope123 > 0 && hasClimateScenario && hasClimateFinance && totalScope12 <= T.scope12Target
-        ? STATUS.ACHIEVED
-        : totalScope123 > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      status: totalScope123 > 0 &&
+        (!T.climateScenarioRequired || hasClimateScenario) &&
+        (!T.climateFinanceRequired || hasClimateFinance) &&
+        totalScope12 <= T.scope12Target
+          ? STATUS.ACHIEVED
+          : totalScope123 > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
       pct: totalScope123 > 0
         ? Math.min(100,
             (totalScope12 <= T.scope12Target ? 40 : Math.min(40, (T.scope12Target / totalScope12) * 40))
-            + (hasClimateScenario ? 30 : 0)
-            + (hasClimateFinance  ? 30 : 0))
+            + ((!T.climateScenarioRequired || hasClimateScenario) ? 30 : 0)
+            + ((!T.climateFinanceRequired || hasClimateFinance) ? 30 : 0))
         : 0,
       thresholdFields: [
         {
           key: 'scope12_target_tco2e', label: 'Scope 1+2 Emissions Target', type: 'number',
           unit: 'tCO₂e', min: 0, max: 10000, step: 10, default: 100,
-          hint: 'Maximum total Scope 1+2 GHG emissions (tCO₂e) across all events. Combined with scenario analysis & climate finance tracking for Achieved.',
+          hint: 'Maximum total Scope 1+2 GHG emissions (tCO₂e) across all events.',
+        },
+        {
+          key: 'climate_scenario_required', label: 'Climate Scenario Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require Climate Scenario Analysis to be completed for Achieved status.',
+        },
+        {
+          key: 'climate_finance_required', label: 'Climate Finance Tracked Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require Climate Opportunities / Capex / Internal Carbon Price tracking for Achieved status.',
         },
       ],
     },
@@ -312,25 +375,66 @@ const SDGDashboard = () => {
     {
       num: 16, name: 'Peace, Justice & Institutions', color: '#0A97D9',
       target: '16.5 Reduce corruption & bribery | 16.6 Transparent institutions | 16.10 Data privacy',
-      metric: `Training: ${corruptTraining > 0 ? corruptTraining.toFixed(1) + '%' : 'N/A'} (target ≥${T.corruptTrain}%) | Incidents: ${corruptIncidents} | Breaches: ${privacyBreaches} | ERM: ${corp.risk_erm_integration_status || 'N/A'}`,
+      metric: `Training: ${corruptTraining > 0 ? corruptTraining.toFixed(1) + '%' : 'N/A'} (target ≥${T.corruptTrain}%) | Incidents: ${corruptIncidents} (target ≤${T.corruptionIncidents}) | Breaches: ${privacyBreaches} (target ≤${T.privacyBreaches}) | ERM: ${corp.risk_erm_integration_status || 'N/A'}`,
       status:
-        corruptIncidents === 0 && privacyBreaches === 0 &&
-        corruptTraining >= T.corruptTrain && hasGovOversight && hasExecAccount && hasErmIntegration
+        corruptIncidents <= T.corruptionIncidents &&
+        privacyBreaches <= T.privacyBreaches &&
+        corruptTraining >= T.corruptTrain &&
+        (!T.govOversightRequired || hasGovOversight) &&
+        (!T.execAccountRequired || hasExecAccount) &&
+        (!T.ermIntegrationRequired || hasErmIntegration)
           ? STATUS.ACHIEVED
-          : corruptIncidents === 0 && privacyBreaches === 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: corruptIncidents === 0
+          : corruptIncidents <= T.corruptionIncidents && privacyBreaches <= T.privacyBreaches ? STATUS.PARTIAL : STATUS.NOT_STARTED,
+      pct: corruptIncidents <= T.corruptionIncidents
         ? Math.min(100,
             (corruptTraining > 0 ? Math.min(corruptTraining, T.corruptTrain) / T.corruptTrain * 50 : 10)
-            + (privacyBreaches === 0 ? 15 : 0)
-            + (hasGovOversight ? 15 : 0)
-            + (hasExecAccount  ? 10 : 0)
-            + (hasErmIntegration ? 10 : 0))
+            + (privacyBreaches <= T.privacyBreaches ? 15 : 0)
+            + ((!T.govOversightRequired || hasGovOversight) ? 15 : 0)
+            + ((!T.execAccountRequired || hasExecAccount) ? 10 : 0)
+            + ((!T.ermIntegrationRequired || hasErmIntegration) ? 10 : 0))
         : 5,
       thresholdFields: [
         {
           key: 'corrupt_training_target_pct', label: 'Anti-Corruption Training Target', type: 'number',
           unit: '%', min: 0, max: 100, step: 1, default: 95,
           hint: 'Minimum anti-corruption training coverage % required across the organisation for Achieved status.',
+        },
+        {
+          key: 'corruption_incident_threshold', label: 'Max Corruption Incidents Allowed', type: 'number',
+          unit: 'incidents', min: 0, max: 10, step: 1, default: 0,
+          hint: 'Maximum number of confirmed corruption incidents tolerated for Achieved status.',
+        },
+        {
+          key: 'privacy_breach_threshold', label: 'Max Data Breaches Allowed', type: 'number',
+          unit: 'breaches', min: 0, max: 10, step: 1, default: 0,
+          hint: 'Maximum number of confirmed data privacy/security breaches tolerated for Achieved status.',
+        },
+        {
+          key: 'gov_oversight_required', label: 'Board Governance Oversight Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require active board-level ESG oversight meetings for Achieved status.',
+        },
+        {
+          key: 'exec_accountability_required', label: 'Executive ESG Accountability Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require executive accountability policies for ESG to be active for Achieved status.',
+        },
+        {
+          key: 'erm_integration_required', label: 'ERM Integration Required', type: 'select',
+          options: [
+            { value: '1', label: 'Yes' },
+            { value: '0', label: 'No' },
+          ],
+          default: 1,
+          hint: 'Require ESG risks to be integrated into Enterprise Risk Management for Achieved status.',
         },
       ],
     },
@@ -495,17 +599,30 @@ const SDGDashboard = () => {
                     {field.unit && <span className="sdg-modal-unit"> ({field.unit})</span>}
                   </label>
                   <div className="sdg-modal-input-wrap">
-                    <input
-                      id={`sdg-field-${field.key}`}
-                      type="number"
-                      min={field.min}
-                      max={field.max}
-                      step={field.step}
-                      value={editFields[field.key] ?? field.default}
-                      onChange={e => setEditFields((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
-                      className="input-field sdg-modal-input"
-                      placeholder={`Default: ${field.default}`}
-                    />
+                    {field.type === 'select' ? (
+                      <select
+                        id={`sdg-field-${field.key}`}
+                        value={editFields[field.key] ?? field.default}
+                        onChange={e => setEditFields((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                        className="input-field sdg-modal-input"
+                      >
+                        {field.options.map((opt: any) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id={`sdg-field-${field.key}`}
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        step={field.step}
+                        value={editFields[field.key] ?? field.default}
+                        onChange={e => setEditFields((prev: any) => ({ ...prev, [field.key]: e.target.value }))}
+                        className="input-field sdg-modal-input"
+                        placeholder={`Default: ${field.default}`}
+                      />
+                    )}
                     {field.unit && <span className="sdg-modal-input-unit">{field.unit}</span>}
                   </div>
                   {field.hint && <p className="sdg-modal-hint">{field.hint}</p>}
@@ -520,8 +637,12 @@ const SDGDashboard = () => {
                     <span>{f.label}:</span>
                     <strong>
                       {settings[f.key] !== undefined && settings[f.key] !== null
-                        ? `${settings[f.key]} ${f.unit ?? ''}`
-                        : <span className="sdg-modal-default">default ({f.default} {f.unit ?? ''})</span>
+                        ? (f.type === 'select'
+                            ? (f.options.find((o: any) => String(o.value) === String(settings[f.key]))?.label ?? settings[f.key])
+                            : `${settings[f.key]} ${f.unit ?? ''}`)
+                        : (f.type === 'select'
+                            ? `default (${f.options.find((o: any) => String(o.value) === String(f.default))?.label ?? f.default})`
+                            : <span className="sdg-modal-default">default ({f.default} {f.unit ?? ''})</span>)
                       }
                     </strong>
                   </div>
