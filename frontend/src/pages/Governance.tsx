@@ -7,10 +7,6 @@ import './Governance.css';
 const Governance = () => {
   const [formData, setFormData] = useState(null);
   const [governanceYears, setGovernanceYears] = useState<string[]>([]);
-  // Years are sourced from the governance tables themselves, not from
-  // module_events — an event can exist for a year with no governance data
-  // saved at all (and vice versa), so event-existence is the wrong signal
-  // for "should the page default to this year".
   const { selectedYear, setSelectedYear, availableYears } = useReportingYear(governanceYears);
 
   useEffect(() => {
@@ -18,9 +14,6 @@ const Governance = () => {
   }, []);
 
   useEffect(() => {
-    // Guards against React.StrictMode's dev-mode double-invoke: without this,
-    // two concurrent fetches can race, and whichever resolves last overwrites
-    // formData — silently discarding an edit made in the gap between them.
     let active = true;
     const load = async () => {
       const data = await getCorporateGovernance(selectedYear);
@@ -31,12 +24,12 @@ const Governance = () => {
   }, [selectedYear]);
 
   const handleInputChange = (e) => {
-    const { name, value, type } = e.target;
-    let val = type === 'number' ? parseFloat(value) || 0 : value;
+    const { name, value, type, checked } = e.target;
+    let val: any = type === 'number' ? (parseFloat(value) || 0) : type === 'checkbox' ? checked : value;
     setFormData(prev => ({ ...prev, [name]: val }));
   };
 
-  const handleHtmlChange = (name, value) => {
+  const handleTextChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -50,6 +43,23 @@ const Governance = () => {
   };
 
   if (!formData) return <div>Loading...</div>;
+
+  const tf = (name: string, rows = 3) => (
+    <textarea
+      rows={rows}
+      className="input-field"
+      name={name}
+      value={formData[name] || ''}
+      onChange={e => handleTextChange(name, e.target.value)}
+    />
+  );
+
+  const inp = (name: string, placeholder = '') => (
+    <input type="text" name={name} className="input-field"
+      placeholder={placeholder}
+      value={formData[name] || ''}
+      onChange={handleInputChange} />
+  );
 
   return (
     <div className="gov-container animate-fade-in">
@@ -69,105 +79,135 @@ const Governance = () => {
       </div>
 
       <div className="gov-grid">
+
+        {/* ── B1 Governance ── */}
         <div className="glass-card gov-section">
           <h3>B1 — Governance</h3>
+
+          <h4 className="gov-subsection">Oversight Mechanism</h4>
           <div className="form-group">
-            <label>Sustainability Committee Name</label>
-            <input type="text" name="gov_committee_name" value={formData.gov_committee_name || ''} onChange={handleInputChange} className="input-field" />
+            <label>Name of Board / Committee</label>
+            {inp('gov_committee_name', 'e.g. Sustainability Committee')}
           </div>
           <div className="form-group">
-            <label>Committee Meeting Frequency</label>
-            <input type="text" name="gov_meeting_frequency" placeholder="e.g. Quarterly" value={formData.gov_meeting_frequency || ''} onChange={handleInputChange} className="input-field" />
+            <label>Sustainability Oversight Frequency</label>
+            {inp('gov_meeting_frequency', 'e.g. Quarterly')}
           </div>
           <div className="form-group">
-            <label>Board Oversight Description</label>
-            <textarea
-              rows={4}
-              className="input-field"
-              value={formData.gov_board_oversight_text ? formData.gov_board_oversight_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('gov_board_oversight_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>Description of Controls / Procedures</label>
+            {tf('gov_board_oversight_text', 4)}
+          </div>
+
+          <h4 className="gov-subsection">Strategy Integration</h4>
+          <div className="form-group">
+            <label>How Risks Are Considered in Strategic Planning</label>
+            {tf('gov_strategy_integration_text')}
           </div>
           <div className="form-group">
-            <label>Executive Accountability</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.gov_executive_accountability_text ? formData.gov_executive_accountability_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('gov_executive_accountability_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>How Risks Affect Business Model / Value Chain</label>
+            {tf('gov_business_model_impact_text')}
           </div>
           <div className="form-group">
-            <label>Sustainability Strategy Integration</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.gov_strategy_integration_text ? formData.gov_strategy_integration_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('gov_strategy_integration_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>Time Horizons Used (with year ranges for Short / Medium / Long)</label>
+            {tf('gov_time_horizons_text', 2)}
           </div>
+
+          <h4 className="gov-subsection">Executive Accountability</h4>
+          <div className="form-group">
+            <label>Name &amp; Role of Accountable Executive</label>
+            {inp('gov_exec_name_role', 'e.g. Chief Sustainability Officer — Jane Doe')}
+          </div>
+          <div className="form-group">
+            <label>General Executive Accountability Description</label>
+            {tf('gov_executive_accountability_text')}
+          </div>
+          <div className="form-group">
+            <label>Board Reporting Document URL</label>
+            {inp('gov_board_report_url', 'https://...')}
+          </div>
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                name="gov_exec_kpi_pay_linked"
+                checked={!!formData.gov_exec_kpi_pay_linked}
+                onChange={handleInputChange}
+              />
+              &nbsp;Sustainability KPIs Linked to Executive Pay
+            </label>
+          </div>
+          {formData.gov_exec_kpi_pay_linked && (
+            <div className="form-group">
+              <label>Description of KPIs in Executive Pay</label>
+              {tf('gov_exec_kpi_pay_desc')}
+            </div>
+          )}
         </div>
 
+        {/* ── B2 Strategy ── */}
         <div className="glass-card gov-section">
           <h3>B2 — Strategy</h3>
+
+          <h4 className="gov-subsection">Time Horizon Risk Planning</h4>
           <div className="form-group">
             <label>Short-Term Risks (0–1 year)</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.strategy_short_text ? formData.strategy_short_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('strategy_short_text', `<p>${e.target.value}</p>`)}
-            />
+            {tf('strategy_short_text')}
           </div>
           <div className="form-group">
             <label>Medium-Term Risks (1–5 years)</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.strategy_medium_text ? formData.strategy_medium_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('strategy_medium_text', `<p>${e.target.value}</p>`)}
-            />
+            {tf('strategy_medium_text')}
           </div>
           <div className="form-group">
             <label>Long-Term Risks (5+ years)</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.strategy_long_text ? formData.strategy_long_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('strategy_long_text', `<p>${e.target.value}</p>`)}
-            />
+            {tf('strategy_long_text')}
+          </div>
+
+          <h4 className="gov-subsection">Climate Scenario Resilience Summary</h4>
+          <div className="form-group">
+            <label>Scenario(s) Used and Source</label>
+            {tf('scenario_scenarios_used_text', 2)}
           </div>
           <div className="form-group">
-            <label>Climate Scenario Analysis</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.scenario_analysis_text ? formData.scenario_analysis_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('scenario_analysis_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>Key Assumptions Applied</label>
+            {tf('scenario_key_assumptions_text')}
+          </div>
+          <div className="form-group">
+            <label>Qualitative Resilience Summary</label>
+            {tf('scenario_resilience_summary_text')}
+          </div>
+          <div className="form-group">
+            <label>Identified Gaps / Vulnerabilities</label>
+            {tf('scenario_gaps_text')}
+          </div>
+          <div className="form-group">
+            <label>General Climate Scenario Notes (legacy)</label>
+            {tf('scenario_analysis_text')}
           </div>
         </div>
 
+        {/* ── B3 Risk Management ── */}
         <div className="glass-card gov-section">
           <h3>B3 — Risk Management</h3>
+
+          <h4 className="gov-subsection">Risk Identification</h4>
           <div className="form-group">
-            <label>Risk Identification Process</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.risk_identification_text ? formData.risk_identification_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('risk_identification_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>List of Material Risk Topics (Risk Identification Process)</label>
+            {tf('risk_identification_text')}
           </div>
           <div className="form-group">
-            <label>Risk Assessment Methodology</label>
-            <textarea
-              rows={3}
-              className="input-field"
-              value={formData.risk_assessment_text ? formData.risk_assessment_text.replace(/<[^>]*>?/gm, '') : ''}
-              onChange={(e) => handleHtmlChange('risk_assessment_text', `<p>${e.target.value}</p>`)}
-            />
+            <label>Methodology / Framework Used (TCFD, GRI, Double Materiality)</label>
+            {tf('risk_assessment_text')}
           </div>
+          <div className="form-group">
+            <label>Risk Prioritisation Criteria</label>
+            {tf('risk_prioritisation_text')}
+          </div>
+          <div className="form-group">
+            <label>Frequency of Risk Review Cycle</label>
+            {inp('risk_review_frequency', 'e.g. Annual, Semi-annual')}
+          </div>
+
+          <h4 className="gov-subsection">ERM Matrix Integration</h4>
           <div className="form-group">
             <label>ERM Integration Status</label>
             <select name="risk_erm_integration_status" value={formData.risk_erm_integration_status || ''} onChange={handleInputChange} className="input-field">
@@ -176,7 +216,20 @@ const Governance = () => {
               <option value="Not Yet Integrated">Not Yet Integrated</option>
             </select>
           </div>
+          <div className="form-group">
+            <label>How Sustainability Risks Map onto the Risk Register</label>
+            {tf('risk_register_mapping_text')}
+          </div>
+          <div className="form-group">
+            <label>Risk Owner Assignment (e.g. CFO, COO, Function Leads)</label>
+            {tf('risk_owner_assignment_text', 2)}
+          </div>
+          <div className="form-group">
+            <label>Mitigation Actions Recorded Against Each Risk</label>
+            {tf('risk_mitigation_actions_text')}
+          </div>
         </div>
+
       </div>
 
       {/* Climate Finance (IFRS S2) numeric metrics are edited from the

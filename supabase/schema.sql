@@ -581,3 +581,45 @@ where not exists (select 1 from public.module_hr_diversity);
 insert into public.module_climate_finance (organisation_id, reporting_year)
 select '00000000-0000-0000-0000-000000000001'::uuid, '2025'
 where not exists (select 1 from public.module_climate_finance);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- MIGRATIONS: IFRS S1 expanded governance fields
+-- Safe to re-run (ADD COLUMN IF NOT EXISTS).
+-- ═══════════════════════════════════════════════════════════════════
+
+-- Strategy Integration Framework
+alter table public.module_strategy_risk
+  add column if not exists gov_business_model_impact_text  text,
+  add column if not exists gov_time_horizons_text          text;
+
+-- Executive Accountability Structure
+alter table public.module_strategy_risk
+  add column if not exists gov_exec_name_role              text,
+  add column if not exists gov_exec_kpi_pay_linked         boolean default false,
+  add column if not exists gov_exec_kpi_pay_desc           text,
+  add column if not exists gov_board_report_url            text;
+
+-- Sustainability Risk Identification
+alter table public.module_strategy_risk
+  add column if not exists risk_prioritisation_text        text,
+  add column if not exists risk_review_frequency           text;
+
+-- ERM Matrix Operational Integration (narrative)
+alter table public.module_strategy_risk
+  add column if not exists risk_register_mapping_text      text,
+  add column if not exists risk_owner_assignment_text      text,
+  add column if not exists risk_mitigation_actions_text    text;
+
+-- Climate Scenario Resilience Summary (split from single merged box)
+alter table public.module_strategy_risk
+  add column if not exists scenario_scenarios_used_text    text,
+  add column if not exists scenario_key_assumptions_text   text,
+  add column if not exists scenario_resilience_summary_text text,
+  add column if not exists scenario_gaps_text              text;
+
+-- HR Diversity age profiles (added in previous session)
+alter table public.module_hr_diversity
+  add column if not exists emp_under30_pct float8 not null default 0,
+  add column if not exists emp_30to50_pct  float8 not null default 0,
+  add column if not exists emp_over50_pct  float8 not null default 0;
+

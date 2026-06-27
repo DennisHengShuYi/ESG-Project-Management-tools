@@ -207,15 +207,15 @@ const Dashboard = () => {
   ] : [];
 
   const ageData = corp.board_under30_pct != null ? [
-    { name: '<30',   value: +(corp.board_under30_pct || 0), fill: C.green },
-    { name: '30–50', value: +(corp.board_30to50_pct || 0),  fill: C.blue },
-    { name: '>50',   value: +(corp.board_over50_pct || 0),  fill: C.purple },
+    { name: 'Under 30', value: +(corp.board_under30_pct || 0), fill: C.green },
+    { name: '30–50',    value: +(corp.board_30to50_pct || 0),  fill: C.blue },
+    { name: 'Over 50',  value: +(corp.board_over50_pct || 0),  fill: C.purple },
   ] : [];
 
   const empAgeData = corp.emp_under30_pct != null ? [
-    { name: '<30',   value: +(corp.emp_under30_pct || 0), fill: C.green },
-    { name: '30–50', value: +(corp.emp_30to50_pct || 0),  fill: C.blue },
-    { name: '>50',   value: +(corp.emp_over50_pct || 0),  fill: C.purple },
+    { name: 'Under 30', value: +(corp.emp_under30_pct || 0), fill: C.green },
+    { name: '30–50',    value: +(corp.emp_30to50_pct || 0),  fill: C.blue },
+    { name: 'Over 50',  value: +(corp.emp_over50_pct || 0),  fill: C.purple },
   ] : [];
 
   /* ── Corp save handler ─────────────────────────────────────────── */
