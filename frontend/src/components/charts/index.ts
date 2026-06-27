@@ -7,4 +7,3 @@ export { default as KpiCard } from './KpiCard';
 export { default as DonutChart } from './DonutChart';
 export { default as BarChartPanel } from './BarChartPanel';
 export { default as GaugeBar } from './GaugeBar';
-export { default as DisclosureCard } from './DisclosureCard';
