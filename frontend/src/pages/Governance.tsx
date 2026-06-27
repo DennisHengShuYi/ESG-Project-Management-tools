@@ -60,7 +60,7 @@ const Governance = () => {
         </div>
         <div className="header-actions">
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-            {availableYears.map(y => <option key={y} value={y}>{`FYE ${y}`}</option>)}
+            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <button className="btn btn-primary" onClick={handleSave}>
             <Save size={18} /> Save Data

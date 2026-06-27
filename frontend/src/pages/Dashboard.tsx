@@ -591,9 +591,9 @@ const Dashboard = () => {
           <p className="text-secondary">Comprehensive ESG metrics aggregated across all events.</p>
         </div>
         <div className="year-selector">
-          <label>Financial Year:</label>
+          <label>Year:</label>
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-            {availableYears.map(y => <option key={y} value={y}>{`FYE ${y}`}</option>)}
+            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
