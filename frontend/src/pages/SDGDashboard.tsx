@@ -148,7 +148,7 @@ const SDGDashboard = () => {
         : 'Board diversity not tracked',
       status: !hasBoardData ? STATUS.NOT_STARTED
         : boardFemalePct >= T.boardFemale && totalHrComplaints === 0 ? STATUS.ACHIEVED : STATUS.PARTIAL,
-      pct: hasBoardData ? Math.min(100, (boardFemalePct / T.boardFemale) * 100) : 0,
+      pct: hasBoardData ? Math.min(100, Math.min(80, (boardFemalePct / T.boardFemale) * 80) + (totalHrComplaints === 0 ? 20 : 0)) : 0,
       thresholdFields: [
         {
           key: 'board_female_target_pct', label: 'Female Board Representation Target', type: 'number',
@@ -254,7 +254,7 @@ const SDGDashboard = () => {
       status: avgDivertedPct >= T.wasteDiv && hasClimateScenario
         ? STATUS.ACHIEVED
         : totalWasteKg > 0 ? STATUS.PARTIAL : STATUS.NOT_STARTED,
-      pct: totalWasteKg > 0 ? Math.min(100, (avgDivertedPct / T.wasteDiv) * 100) : 0,
+      pct: totalWasteKg > 0 ? Math.min(100, Math.min(60, (avgDivertedPct / T.wasteDiv) * 60) + (hasClimateScenario ? 40 : 0)) : 0,
       thresholdFields: [
         {
           key: 'waste_diversion_target_pct', label: 'Waste Diversion Rate Target', type: 'number',
