@@ -52,6 +52,31 @@ test('FIXED: an invalid/expired token auto-logs-out with a clear message instead
   expect(token).toBeNull();
 });
 
+test('FIXED: a token with a past exp claim is rejected client-side without needing a backend 401', async ({ page }) => {
+  // Regression test for the Vercel production scenario: decodeToken() was
+  // not checking the `exp` claim, so a 24h-old (expired) token still passed
+  // the client-side check, the dashboard rendered, and logout only happened
+  // after the first API call returned 401 — which never fires when the
+  // backend is unreachable (ERR_CONNECTION_REFUSED → network exception →
+  // caught silently, no redirect).
+  const expiredToken = buildFakeJWT({
+    id: 'fake-id',
+    email: 'fake@example.com',
+    organisation_id: '00000000-0000-0000-0000-000000000001',
+    exp: Math.floor(Date.now() / 1000) - 3600, // expired 1 hour ago
+  });
+
+  await page.goto('/');
+  await page.evaluate((t) => window.localStorage.setItem('token', t), expiredToken);
+  await page.reload();
+
+  // Should be redirected to login with the expiry message — no backend call needed.
+  await expect(page.getByText('Your session has expired. Please log in again.')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('button.auth-tab', { hasText: 'Sign In' })).toBeVisible();
+  const token = await page.evaluate(() => window.localStorage.getItem('token'));
+  expect(token).toBeNull();
+});
+
 test('FIXED: empty fields now show the custom JS validation message', async ({ page }) => {
   // Regression test: the inputs used to have a plain `required` attribute,
   // and native browser validation intercepted submission before handleAuth's

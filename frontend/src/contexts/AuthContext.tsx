@@ -15,7 +15,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper to decode JWT payload locally without external library
+// Helper to decode JWT payload locally without external library.
+// Also checks the `exp` claim so an expired token is rejected immediately
+// on page load — without this, decodeToken() would return the user payload
+// from a stale token, the dashboard would render, and logout would only
+// happen after the first API call got a 401 from the backend (which never
+// fires if the backend is unreachable, e.g. on Vercel with no backend up).
 const decodeToken = (token: string): UserPayload | null => {
   try {
     const base64Url = token.split('.')[1];
@@ -26,7 +31,12 @@ const decodeToken = (token: string): UserPayload | null => {
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
     );
-    return JSON.parse(jsonPayload);
+    const payload = JSON.parse(jsonPayload);
+    // JWT `exp` is in seconds; Date.now() is in milliseconds.
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return null; // token is expired — treat as unauthenticated
+    }
+    return payload;
   } catch (e) {
     return null;
   }
@@ -43,8 +53,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (decoded) {
         setUser(decoded);
       } else {
-        // Token was invalid/malformed, clear it
+        // Token was invalid, malformed, or expired — clear it and surface a
+        // message so the user knows why they were logged out (mirrors the UX
+        // of the 401 path in db.ts apiFetch).
         localStorage.removeItem('token');
+        sessionStorage.setItem('auth_message', 'Your session has expired. Please log in again.');
       }
     }
     setLoading(false);
