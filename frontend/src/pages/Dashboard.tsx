@@ -577,7 +577,11 @@ const Dashboard = () => {
       value: `${agg_.total_energy_mwh.toFixed(1)}`,
       sub: 'MWh consumed',
       icon: Zap,
-      color: C.amber,
+      // var(--warning), not C.amber — C.amber (#F59E0B) only hits ~2.1:1
+      // contrast as text on a white background. The CSS variable resolves
+      // to a darker, legible shade in light mode and the original bright
+      // one in dark mode (see index.css).
+      color: 'var(--warning)',
       bg: 'rgba(245,158,11,0.08)',
       trend: trendOf(agg_.total_energy_mwh, prevSum('total_energy_mwh')),
       goodWhenUp: false,
@@ -634,7 +638,7 @@ const Dashboard = () => {
         {TABS.map(tab => (
           <button
             key={tab.id}
-            className={`module-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            className={`module-tab-btn module-tab-${tab.id} ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}

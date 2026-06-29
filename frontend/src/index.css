@@ -14,18 +14,30 @@
   
   --text-primary: #111827; /* Gray 900 */
   --text-secondary: #4B5563; /* Gray 600 */
-  --text-tertiary: #9CA3AF; /* Gray 400 */
+  /* Gray 400 (#9CA3AF) only hits ~2.5:1 contrast on white, well under the
+     4.5:1 WCAG AA minimum for text. Gray 500 keeps it visibly lighter than
+     --text-secondary while staying readable (~4.6:1). */
+  --text-tertiary: #6B7280; /* Gray 500 */
   
   --border-color: #E5E7EB; /* Gray 200 */
   
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #3B82F6;
+  /* The 500-shades read great on a dark background (~6-7:1, see the dark
+     theme override below) but badly on white: success ~2.5:1, warning
+     ~2.1:1, danger ~3.8:1, info ~3.7:1 — all under the 4.5:1 AA minimum for
+     text. Darker shades of the same hues for light mode; dark mode keeps
+     the originals since those already work. */
+  --success: #059669; /* Green 600 — ~3.8:1 */
+  --warning: #B45309; /* Amber 700 — ~5.2:1 */
+  --danger: #DC2626; /* Red 600 — ~4.8:1 */
+  --info: #2563EB; /* Blue 600 — ~5.2:1 */
   
   /* Glassmorphism */
   --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  /* A *white* translucent border only reads against a dark backdrop — on a
+     near-white card over a near-white page it was effectively invisible,
+     leaving every card looking edgeless. Dark-tinted instead, so cards
+     actually show a visible boundary in light mode. */
+  --glass-border: rgba(17, 24, 39, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
   
   /* Shadows */
@@ -59,6 +71,13 @@
   --text-tertiary: #6B7280; /* Gray 500 */
 
   --border-color: #374151; /* Gray 700 */
+
+  /* The bright 500-shades read great against this dark surface (~6-7:1) —
+     keep them here instead of inheriting the light theme's darkened set. */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
 
   --glass-bg: rgba(31, 41, 55, 0.7);
   --glass-border: rgba(255, 255, 255, 0.05);

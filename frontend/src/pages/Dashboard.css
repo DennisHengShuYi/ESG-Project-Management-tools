@@ -88,6 +88,24 @@
   font-weight: 600;
 }
 
+/* Each module tab takes the same accent color already used for its icon/
+   charts elsewhere on this page (see CHART_COLORS in components/charts) —
+   gives a quick visual "which module am I in" cue instead of one uniform
+   green for every tab. */
+.module-tab-green-ops:hover       { border-color: #10B981 !important; }
+.module-tab-health-safety:hover   { border-color: #EF4444 !important; }
+.module-tab-procurement:hover     { border-color: #14B8A6 !important; }
+.module-tab-financial:hover       { border-color: #F59E0B !important; }
+.module-tab-climate-finance:hover { border-color: #8B5CF6 !important; }
+.module-tab-hr-diversity:hover    { border-color: #3B82F6 !important; }
+
+.module-tab-green-ops.active       { background: #10B981 !important; border-color: #10B981 !important; }
+.module-tab-health-safety.active   { background: #EF4444 !important; border-color: #EF4444 !important; }
+.module-tab-procurement.active     { background: #14B8A6 !important; border-color: #14B8A6 !important; }
+.module-tab-financial.active       { background: #F59E0B !important; border-color: #F59E0B !important; }
+.module-tab-climate-finance.active { background: #8B5CF6 !important; border-color: #8B5CF6 !important; }
+.module-tab-hr-diversity.active    { background: #3B82F6 !important; border-color: #3B82F6 !important; }
+
 /* ── Tab content area ───────────────────────────────────────────── */
 .tab-content-area {
   display: flex;

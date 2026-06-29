@@ -197,8 +197,8 @@
   position: absolute;
   top: 48px;
   right: 0;
-  background: rgba(16, 26, 21, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-radius: 12px;
@@ -223,20 +223,20 @@
   flex-direction: column;
   gap: 4px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .dropdown-label {
   font-size: 10px;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-tertiary);
   letter-spacing: 0.5px;
   font-weight: 600;
 }
 
 .dropdown-email {
   font-size: 13px;
-  color: #cbd5e1;
+  color: var(--text-primary);
   font-weight: 500;
   word-break: break-all;
 }
@@ -244,7 +244,7 @@
 .logout-btn {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  color: var(--danger);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13px;
@@ -262,7 +262,7 @@
 .logout-btn:hover {
   background: rgba(239, 68, 68, 0.2);
   border-color: rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
+  color: var(--danger);
   transform: translateY(-0.5px);
 }
 

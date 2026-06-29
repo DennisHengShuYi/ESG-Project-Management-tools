@@ -68,10 +68,13 @@
 /* Status-based opacity settings if needed, or leave clean */
 .sdg-card-not_started { opacity: 0.75; }
 
-/* ── Card header (coloured band) ────────────────────────────────── */
+/* ── Card header ──────────────────────────────────────────────────
+   No background of its own — .sdg-card supplies the same translucent
+   glass background, so a solid --surface-hover fill here used to read
+   as a slightly mismatched gray band on top of it. The border-bottom
+   alone is enough to separate header from body. */
 .sdg-header {
   padding: 0.85rem 1rem;
-  background: var(--surface-hover);
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
   display: flex;
@@ -86,6 +89,12 @@
   flex-shrink: 0;
   color: var(--primary-color);
 }
+
+/* Match the number's color to the card's own achievement status instead of
+   always showing the brand green, regardless of whether it's been achieved. */
+.sdg-card-achieved .sdg-num    { color: #10B981; }
+.sdg-card-partial .sdg-num     { color: #F59E0B; }
+.sdg-card-not_started .sdg-num { color: var(--text-tertiary); }
 
 .sdg-header-right {
   display: flex;

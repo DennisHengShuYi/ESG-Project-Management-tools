@@ -162,7 +162,7 @@
 .btn-csv-download {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  color: var(--success);
 }
 
 .btn-csv-download:hover {
@@ -173,7 +173,7 @@
 .btn-csv-upload {
   background: rgba(59, 130, 246, 0.12);
   border-color: rgba(59, 130, 246, 0.3);
-  color: #60a5fa;
+  color: var(--info);
 }
 
 .btn-csv-upload:hover:not(:disabled) {
@@ -203,18 +203,18 @@
 .csv-status-loading {
   background: rgba(245, 158, 11, 0.1);
   border: 1px solid rgba(245, 158, 11, 0.25);
-  color: #fbbf24;
+  color: var(--warning);
 }
 
 .csv-status-success {
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.25);
-  color: #34d399;
+  color: var(--success);
 }
 
 .csv-status-error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #f87171;
+  color: var(--danger);
 }
 
