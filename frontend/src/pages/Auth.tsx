@@ -68,8 +68,9 @@ const Auth = () => {
           }),
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed.');
+        let data: any = {};
+        try { data = await res.json(); } catch { /* non-JSON body — keep empty object */ }
+        if (!res.ok) throw new Error(data.error || `Registration failed (HTTP ${res.status}).`);
 
         // Automatically log the user in
         login(data.token, data.user);
@@ -80,8 +81,9 @@ const Auth = () => {
           body: JSON.stringify({ email, password }),
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed.');
+        let data: any = {};
+        try { data = await res.json(); } catch { /* non-JSON body — keep empty object */ }
+        if (!res.ok) throw new Error(data.error || `Login failed (HTTP ${res.status}).`);
 
         login(data.token, data.user);
       }

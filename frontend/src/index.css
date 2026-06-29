@@ -46,21 +46,22 @@
   --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #111827; /* Gray 900 */
-    --surface: #1F2937; /* Gray 800 */
-    --surface-hover: #374151; /* Gray 700 */
-    
-    --text-primary: #F9FAFB; /* Gray 50 */
-    --text-secondary: #D1D5DB; /* Gray 300 */
-    --text-tertiary: #6B7280; /* Gray 500 */
-    
-    --border-color: #374151; /* Gray 700 */
-    
-    --glass-bg: rgba(31, 41, 55, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.05);
-  }
+/* Dark theme — applied via [data-theme="dark"] on <html>, set by ThemeContext
+   (frontend/src/contexts/ThemeContext.tsx). Defaults to the OS preference on
+   first visit, then remembers the user's explicit choice in localStorage. */
+[data-theme="dark"] {
+  --background: #111827; /* Gray 900 */
+  --surface: #1F2937; /* Gray 800 */
+  --surface-hover: #374151; /* Gray 700 */
+
+  --text-primary: #F9FAFB; /* Gray 50 */
+  --text-secondary: #D1D5DB; /* Gray 300 */
+  --text-tertiary: #6B7280; /* Gray 500 */
+
+  --border-color: #374151; /* Gray 700 */
+
+  --glass-bg: rgba(31, 41, 55, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.05);
 }
 
 /* Global Reset */
