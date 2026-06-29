@@ -161,8 +161,11 @@ async function main() {
   if (aErr) { console.error('event_attendance:', aErr.message); process.exit(1); }
   console.log('Inserted ' + attRows.length + ' Attendance records');
 
-  console.log('\nUpdating organisation-level governance data...');
-  const { error: srErr } = await supabase.from('module_strategy_risk').update({
+  console.log('\nSeeding organisation-level governance data for 2025...');
+  const GOV_YEAR = '2025';
+  const { error: srErr } = await supabase.from('module_strategy_risk').upsert({
+    organisation_id: ORG_ID,
+    reporting_year: GOV_YEAR,
     gov_committee_name: 'Sustainability & ESG Committee',
     gov_meeting_frequency: 'Quarterly',
     gov_board_oversight_text: 'The Board reviews ESG performance against key metrics on a quarterly basis through the Sustainability Committee.',
@@ -171,10 +174,12 @@ async function main() {
     risk_erm_integration_status: 'Fully Integrated',
     risk_identification_text: 'Climate, regulatory, and reputational ESG risks are identified via annual enterprise risk management review.',
     risk_assessment_text: 'Two climate scenario analyses completed: 1.5°C Paris-aligned and 4°C business-as-usual scenarios.',
-  }).eq('organisation_id', ORG_ID);
-  if (srErr) console.error('module_strategy_risk:', srErr.message); else console.log('Updated module_strategy_risk');
+  }, { onConflict: 'organisation_id,reporting_year' });
+  if (srErr) console.error('module_strategy_risk:', srErr.message); else console.log('Seeded module_strategy_risk for ' + GOV_YEAR);
 
-  const { error: hrErr } = await supabase.from('module_hr_diversity').update({
+  const { error: hrErr } = await supabase.from('module_hr_diversity').upsert({
+    organisation_id: ORG_ID,
+    reporting_year: GOV_YEAR,
     emp_total: 1200, emp_female: 504, emp_male: 696,
     board_total: 8, board_female: 3, board_male: 5,
     board_male_pct: 62.0, board_female_pct: 38.0,
@@ -182,10 +187,12 @@ async function main() {
     emp_under30_pct: 25.0, emp_30to50_pct: 50.0, emp_over50_pct: 25.0,
     anticorrupt_training_coverage: 98.5, corruption_risk_assessment_pct: 100.0,
     confirmed_corruption_incidents: 0,
-  }).eq('organisation_id', ORG_ID);
-  if (hrErr) console.error('module_hr_diversity:', hrErr.message); else console.log('Updated module_hr_diversity');
+  }, { onConflict: 'organisation_id,reporting_year' });
+  if (hrErr) console.error('module_hr_diversity:', hrErr.message); else console.log('Seeded module_hr_diversity for ' + GOV_YEAR);
 
-  const { error: cfErr } = await supabase.from('module_climate_finance').update({
+  const { error: cfErr } = await supabase.from('module_climate_finance').upsert({
+    organisation_id: ORG_ID,
+    reporting_year: GOV_YEAR,
     climate_transition_risk_rm: 450000, climate_transition_risk_pct: 8.2,
     climate_physical_risk_rm: 280000, climate_physical_risk_pct: 5.1,
     climate_chronic_risk_rm: 120000, climate_chronic_risk_pct: 2.2,
@@ -193,8 +200,8 @@ async function main() {
     climate_capex_rm: 320000, internal_carbon_price: 25, exec_climate_remun_pct: 15,
     fin_position_impact_rm: 730000, fin_position_impact_pct: 13.3,
     fin_position_time_horizon: '3–5 years',
-  }).eq('organisation_id', ORG_ID);
-  if (cfErr) console.error('module_climate_finance:', cfErr.message); else console.log('Updated module_climate_finance');
+  }, { onConflict: 'organisation_id,reporting_year' });
+  if (cfErr) console.error('module_climate_finance:', cfErr.message); else console.log('Seeded module_climate_finance for ' + GOV_YEAR);
 
   console.log('\nReseed complete!');
   EVENTS.forEach(e => console.log('[' + e.reporting_year + '] ' + e.event_status.padEnd(9) + ' - ' + e.event_name));
