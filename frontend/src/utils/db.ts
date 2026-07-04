@@ -431,3 +431,86 @@ export const uploadEventCsv = async (eventId: string, file: File): Promise<{ suc
   });
 };
 
+// ── Admin: team management, activity log, org settings ─────────────
+export const getAdminUsers = async () => {
+  try {
+    const headers = await getHeaders(true);
+    const res = await apiFetch(`${API_URL}/api/admin/users`, { method: 'GET', headers });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error('getAdminUsers error:', error);
+    return [];
+  }
+};
+
+export const createAdminUser = async (payload: any) => {
+  try {
+    const headers = await getHeaders();
+    const res = await apiFetch(`${API_URL}/api/admin/users`, {
+      method: 'POST', headers, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || 'Failed to create user.' };
+    return { success: true, user: data };
+  } catch (error: any) {
+    console.error('createAdminUser error:', error);
+    return { success: false, error: error.message || 'Failed to create user.' };
+  }
+};
+
+export const updateAdminUser = async (id: string, payload: any) => {
+  try {
+    const headers = await getHeaders();
+    const res = await apiFetch(`${API_URL}/api/admin/users/${id}`, {
+      method: 'PATCH', headers, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || 'Failed to update user.' };
+    return { success: true, user: data };
+  } catch (error: any) {
+    console.error('updateAdminUser error:', error);
+    return { success: false, error: error.message || 'Failed to update user.' };
+  }
+};
+
+export const getAuditLog = async (filters: { module?: string; user_id?: string; from?: string; to?: string; page?: number } = {}) => {
+  try {
+    const headers = await getHeaders(true);
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
+    const res = await apiFetch(`${API_URL}/api/admin/audit-log?${params.toString()}`, { method: 'GET', headers });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error('getAuditLog error:', error);
+    return { rows: [], total: 0, page: 1, pageSize: 50 };
+  }
+};
+
+export const getOrgSettings = async () => {
+  try {
+    const headers = await getHeaders(true);
+    const res = await apiFetch(`${API_URL}/api/admin/org-settings`, { method: 'GET', headers });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error('getOrgSettings error:', error);
+    return {};
+  }
+};
+
+export const saveOrgSettings = async (settingsData: any) => {
+  try {
+    const headers = await getHeaders();
+    const res = await apiFetch(`${API_URL}/api/admin/org-settings`, {
+      method: 'POST', headers, body: JSON.stringify(settingsData),
+    });
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error('saveOrgSettings error:', error);
+    return { success: false };
+  }
+};
+

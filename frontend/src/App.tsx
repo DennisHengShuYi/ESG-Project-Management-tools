@@ -10,10 +10,10 @@ import EventDetail from './pages/EventDetail';
 import Reporting from './pages/Reporting';
 import Governance from './pages/Governance';
 import SDGDashboard from './pages/SDGDashboard';
-import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -57,7 +57,7 @@ function AppContent() {
           <Route path="reporting" element={<Reporting />} />
           <Route path="governance" element={<Governance />} />
           <Route path="sdg" element={<SDGDashboard />} />
-          <Route path="settings" element={<Settings />} />
+          {isAdmin && <Route path="admin" element={<Admin />} />}
         </Route>
       </Routes>
     </BrowserRouter>

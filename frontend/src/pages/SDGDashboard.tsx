@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getEventsFull, getCorporateGovernance, getSettings, saveSettings } from '../utils/db';
 import { useReportingYear } from '../hooks/useReportingYear';
 import { CheckCircle2, AlertCircle, Circle, Download, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import './SDGDashboard.css';
 
 /* ── Status constants ─────────────────────────────────────────────── */
@@ -64,6 +65,11 @@ const SDGDashboard = () => {
   const [settings, setSettings] = useState<any>({});
   const { selectedYear, setSelectedYear, availableYears } =
     useReportingYear(events.map((e: any) => e.reporting_year));
+  const { canRead, canWrite } = useAuth();
+  const canWriteSdg = canWrite('sdg');
+  const canReadEvents = canRead('events');
+  const canReadCorp = ['governance', 'hr-diversity', 'climate-finance'].some(m => canRead(m));
+  const canReadSdg = canRead('sdg');
 
   /* Modal state */
   const [editSdg, setEditSdg]       = useState<any>(null);
@@ -85,13 +91,14 @@ const SDGDashboard = () => {
   })();
 
   useEffect(() => {
-    getEventsFull().then(setEvents);
-    getSettings().then(setSettings);
-  }, []);
+    // Skip requests entirely without read access — they'd just 403.
+    if (canReadEvents) getEventsFull().then(setEvents);
+    if (canReadSdg) getSettings().then(setSettings);
+  }, [canReadEvents, canReadSdg]);
 
   useEffect(() => {
-    getCorporateGovernance(selectedYear).then(setCorp);
-  }, [selectedYear]);
+    if (canReadCorp) getCorporateGovernance(selectedYear).then(setCorp);
+  }, [selectedYear, canReadCorp]);
 
   /* ── Aggregate helpers ────────────────────────────────────────────── */
   const yearEvents  = events.filter((e: any) => e.reporting_year === selectedYear);
@@ -598,9 +605,11 @@ const SDGDashboard = () => {
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-secondary" onClick={() => setManageOpen(true)}>
-            <ListChecks size={18} /> Manage Goals
-          </button>
+          {canWriteSdg && (
+            <button className="btn btn-secondary" onClick={() => setManageOpen(true)}>
+              <ListChecks size={18} /> Manage Goals
+            </button>
+          )}
           <button className="btn btn-primary" onClick={handleExportCsv}>
             <Download size={18} /> Export CSV
           </button>
@@ -627,7 +636,7 @@ const SDGDashboard = () => {
                 <span className="sdg-name">{sdg.name}</span>
               </div>
               {/* Edit button — only for goals with configurable thresholds */}
-              {sdg.thresholdFields.length > 0 && (
+              {canWriteSdg && sdg.thresholdFields.length > 0 && (
                 <button
                   className="sdg-edit-btn"
                   onClick={() => openEdit(sdg)}

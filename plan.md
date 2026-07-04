@@ -1,214 +1,204 @@
 # Multi-User Accounts, Per-Module Permissions & Audit Trail
 
-Status: **proposed — not yet implemented**
-Origin: supervisor feedback — need to track who changes project data and when,
-and need an admin-controlled way to manage what each account can access,
-instead of everyone sharing one login.
+Status: **implemented (Phases 1–4 complete in code) — pending live DB migration**
+Origin: supervisor feedback — need to track who changes project data and
+when, and need an admin-controlled way to manage what each account can
+access, instead of everyone sharing one login.
+
+Revision 3 — marks the full build (schema, backend enforcement, Admin UI,
+frontend gating) as done and records what actually shipped vs. the
+original design, including where implementation diverged slightly from
+earlier revisions.
 
 ---
 
 ## 1. Current state (verified in code, not assumed)
 
-- `backend/src/routes/auth.js` — individual accounts already work today
-  (`POST /api/auth/register`, `/login`), each row in a `users` table with
-  `id, email, password_hash, organisation_id`. So separate logins are
-  technically possible now.
-- **But every user is identical.** No `role` column, no permission column.
-  `backend/src/middleware/auth.js` only ever checks "is this JWT valid" —
-  it never distinguishes one user from another beyond `organisation_id`.
-  `requireEventOwnership.js` scopes access to *the organisation*, not the
-  individual user. Any logged-in member of an org can create/edit/delete
-  anything belonging to that org.
-- **No audit trail exists anywhere.** Tables only have a generic
-  `updated_at` trigger (`set_updated_at()` in `supabase/schema.sql`) — that
-  records *when* a row last changed, never *who* or *what field changed
-  from what to what*. `events.created_by uuid` exists as a column but
-  `events.js`'s `POST /` handler never populates it — it's dead.
-- **No admin UI.** `frontend/src/pages/Settings.tsx` is flat system config
-  (carbon price, thresholds, framework toggles) — no user management, no
-  activity log, anywhere in the app.
-- **The `users` table itself is not in `supabase/schema.sql`.** It's
-  referenced by `auth.js` but was created out-of-band (directly in
-  Supabase), not through the tracked migration (`scripts/migrate.cjs` just
-  applies `schema.sql`). This is a pre-existing drift risk independent of
-  this feature — the migration below has to be additive/defensive since we
-  can't be 100% sure of the live table's exact current columns.
-- **Supabase RLS is wide open.** Every table has an `anon_all` policy
-  (`using (true) with check (true)`) — all real enforcement today lives in
-  the Express layer (organisation_id checks), not the database. This plan
-  keeps that same pattern (enforce in Express) rather than introducing a
-  second enforcement layer in RLS — noted as a separate, pre-existing gap,
-  not something this plan fixes.
+- `backend/src/routes/auth.js` — individual accounts already worked before
+  this feature (`POST /api/auth/register`, `/login`), each row in a `users`
+  table with `id, email, password_hash, organisation_id`.
+- Before this change, every user was identical — no `role`, no permission
+  column, `middleware/auth.js` only checked "is this JWT valid." Any
+  logged-in member of an org could read/create/edit/delete anything
+  belonging to that org.
+- No audit trail existed anywhere — tables only had a generic `updated_at`
+  trigger. `events.created_by uuid` existed as a column but was never
+  populated.
+- `frontend/src/pages/Settings.tsx` was flat system config, not even linked
+  in `Layout.tsx`'s nav — a dead/orphaned route.
+- The `users` table itself was not in `supabase/schema.sql` — created
+  out-of-band, not through the tracked migration.
+- Supabase RLS is (and remains) wide open (`anon_all` policy) — all
+  enforcement lives in the Express layer, same as before this feature.
+  Not fixed here; a separate pre-existing gap.
+- `governance.js` already split one merged payload into `STRATEGY_KEYS` /
+  `HR_KEYS` / `CLIMATE_KEYS` for three tables — reused directly for
+  permission enforcement and redaction (see `utils/fieldRedaction.js`).
+- Each event sub-module already had its own save endpoint — reused
+  directly for per-module write gating.
 
-## 2. Decision locked in with the user
+## 2. Decisions made
 
-Permission model: **per-module**, not a flat Admin/Member split. Each
-non-admin user gets an explicit set of modules they can write to. Modules
-mirror the app's actual tab/module structure:
+- **Permission granularity: fully granular, per module, per user, with
+  independent Read and Write flags.** 11 modules: `events`, `green-ops`,
+  `health-safety`, `procurement`, `financial`, `timeline`, `attendance`,
+  `governance`, `hr-diversity`, `climate-finance`, `sdg`. Admins bypass all
+  per-module checks entirely.
+- **`Settings.tsx` is retired.** Its content now lives in an admin-only
+  **Org Settings** tab inside `pages/Admin.tsx`. `Settings.tsx` /
+  `Settings.css` were deleted; the `/settings` route is gone.
+- **Who becomes admin first — resolved via automatic bootstrap**, not a
+  manual email handoff:
+  - `supabase/schema.sql` migration: for any organisation with zero admins,
+    promote its earliest-created user to admin (safe to re-run — no-op
+    once an org has an admin).
+  - `auth.js` register: the first person to register into an org with no
+    admin yet automatically becomes that org's admin.
+- **Rollout risk — resolved in favour of the softer option.** The
+  migration back-fills full read+write on every module for every user that
+  already exists as of the migration (guarded by
+  `where module_permissions = '{}'`, so it never overwrites a
+  deliberately-configured user). New users created afterward via
+  Admin → Team default to **zero** permissions until an admin grants them —
+  least-privilege only applies going forward, not retroactively.
+- **Module list finalized as originally scoped** — `hr-diversity` and
+  `climate-finance` kept separate from `governance`, matching their
+  separate backend tables.
 
-`events`, `green-ops`, `health-safety`, `procurement`, `financial`,
-`timeline`, `attendance`, `governance`, `sdg`, `settings`
+## 3. Data model (`supabase/schema.sql`) — shipped
 
-Scope simplification (flagged here, not yet separately confirmed): **read
-access stays organisation-wide for everyone** (so reporting/dashboards
-stay useful to the whole team); only **write** (create/update/delete) is
-gated per module. Admins bypass all per-module checks and additionally get
-user management + the activity log. If read access also needs to be
-restricted per module, say so before Phase 2 — it changes several routes.
+- `users` gains `full_name`, `role` (`admin`/`member`, check constraint),
+  `module_permissions jsonb default '{}'`, `is_active`, `last_login_at`.
+- New `audit_log` table (`organisation_id`, `user_id`, `user_email`,
+  `action`, `module`, `table_name`, `record_id`, `changes jsonb`,
+  `created_at`), indexed on `(organisation_id, created_at desc)` and
+  `record_id`, RLS enabled with the same `anon_all` pattern as other
+  tables.
+- Bootstrap + rollout-safety `do $$ ... $$` blocks described above,
+  appended at the end of the migrations section — all idempotent.
 
-## 3. Data model changes (`supabase/schema.sql`)
+`module_permissions` shape: `{ moduleKey: { read: bool, write: bool } }`.
+`audit_log.changes` shape: `{ field: { old, new } }` per changed field for
+updates; a row snapshot for create/delete.
 
-All additive/idempotent (`if not exists`) so re-running is safe and it
-doesn't fight whatever the live `users` table already has.
+**Not yet done: this migration has not been applied to the live Supabase
+database.** `scripts/migrate.cjs` needs `DB_PASSWORD`, which isn't
+available in this environment — you need to run it yourself. Until then,
+`middleware/auth.js`'s per-request `role`/`module_permissions` lookup will
+fail for every request (see §4), so **the backend must not be restarted
+against the live DB until the migration has run.**
 
-```sql
--- Defensive — in case the live table predates this file entirely.
-create table if not exists public.users (
-  id                uuid        default gen_random_uuid() primary key,
-  email             text        not null unique,
-  password_hash     text        not null,
-  organisation_id   uuid        not null references public.organisations(id),
-  created_at        timestamptz not null default now()
-);
+## 4. Backend — shipped
 
-alter table public.users
-  add column if not exists full_name          text,
-  add column if not exists role               text not null default 'member'
-    check (role in ('admin', 'member')),
-  add column if not exists module_permissions jsonb not null default '{}'::jsonb,
-  add column if not exists is_active          boolean not null default true,
-  add column if not exists last_login_at      timestamptz;
+- **`middleware/auth.js`** — after JWT verification, looks up
+  `role, module_permissions, is_active, full_name` fresh from `users` on
+  every request (not trusted from the JWT), rejects with 401 if
+  `is_active = false` or the user row is gone.
+- **`middleware/permissions.js`** (not `requirePermission.js` as first
+  sketched — merged `requirePermission`, `requireRole`, and a shared
+  `hasPermission(user, moduleKey, level)` helper into one file since
+  `governance.js` and the bulk-update route need the raw check, not just
+  the middleware wrapper).
+- **`utils/fieldRedaction.js`** — `STRATEGY_KEYS`/`HR_KEYS`/`CLIMATE_KEYS`
+  moved here from `governance.js` (single source of truth, imported back
+  into `governance.js`), plus `redactGovernanceFields()` and
+  `redactEventFields()` with a `FIELD_MODULE_MAP` mirroring
+  `frontend/src/utils/db.ts`'s `CSV_FIELDS` module tagging.
+- **Write gating applied**: `events.js` (core create/update/delete, all 6
+  per-module save routes, bulk-update requires write on all 6 modules at
+  once), `governance.js` (per-touched-group check, rejects the whole save
+  if any group lacks write), `settings.js` (now gated on `sdg`
+  read/write — its only remaining consumer is `SDGDashboard.tsx`).
+- **Read gating applied**: `events.js` `GET /`, `/full`, `/:id` all require
+  `events` read, with `/full` and `/:id` additionally redacting
+  per-module fields; `governance.js` `GET /` redacts per-group.
+- **`routes/admin.js`** (new, `requireRole('admin')` on everything):
+  `GET/POST /users`, `PATCH /users/:id` (blocks demoting/deactivating the
+  last admin), `GET /audit-log` (paginated, filterable by module/user/date
+  range), `GET/POST /org-settings` (merges into the shared `app_settings`
+  row rather than overwriting it, so it can't wipe out SDG settings stored
+  in the same blob).
+- **`auth.js`** — `register`/`login` now return `role`, `module_permissions`,
+  `full_name`; `login` rejects deactivated accounts and updates
+  `last_login_at` (fire-and-forget); new `GET /me` for rehydrating a
+  session's permissions on page reload without re-logging-in.
+- **"Last edited by"** — `events.js GET /:id` and `governance.js GET /`
+  each attach `_last_edited: { user_email, module, created_at }` from the
+  most recent matching `audit_log` row.
+- Verified: every backend file passes `node --check`; the server boots
+  clean with all new routes/middleware wired (`server.js` mounts
+  `/api/admin`).
 
-create table if not exists public.audit_log (
-  id               uuid        default gen_random_uuid() primary key,
-  organisation_id  uuid        not null references public.organisations(id),
-  user_id          uuid        references public.users(id),
-  user_email       text        not null,   -- denormalised: survives user deletion
-  action           text        not null check (action in ('create','update','delete')),
-  module           text        not null,   -- same keys as module_permissions
-  table_name       text        not null,
-  record_id        uuid,
-  changes          jsonb       not null default '{}'::jsonb,
-  created_at       timestamptz not null default now()
-);
+## 5. Admin configuration — recommendations (implemented as designed)
 
-create index if not exists audit_log_org_time_idx
-  on public.audit_log (organisation_id, created_at desc);
-create index if not exists audit_log_record_idx
-  on public.audit_log (record_id);
-```
+All six recommendations from the prior revision were built as specified:
+least-privilege default for new users, a single permission matrix (not
+per-module screens), presets (Viewer / Full Editor / Event Staff) as a
+fill-in layer over the same matrix, "copy permissions from…" on the add-
+teammate form, backend-enforced last-admin guardrail, and a compact
+"Read N/11 · Write N/11" summary chip per row in the Team table. Bulk
+matrix-wide actions ("grant read to all") were not built — a manual matrix
+still requires per-cell clicks; flagged as a possible future refinement,
+not done.
 
-`changes` shape: for `update`, `{ field: { old, new } }` per changed field
-only (not the whole row); for `create`/`delete`, the relevant row snapshot.
+## 6. Frontend — shipped
 
-## 4. Backend changes
+- **`contexts/AuthContext.tsx`** — `UserPayload` extended with `role` /
+  `module_permissions` / `full_name`; added `isAdmin`, `canRead(moduleKey)`,
+  `canWrite(moduleKey)`. On mount, after decoding the JWT, calls
+  `GET /api/auth/me` to refresh permissions from the backend (so a
+  mid-session permission change or deactivation reflects without a
+  re-login).
+- **`components/Layout.tsx`** — "Admin" nav tab, rendered only when
+  `isAdmin`.
+- **`pages/Admin.tsx`** (new) + `Admin.css` (new) — Team / Activity Log /
+  Org Settings tabs, built per §5. Reuses the Events.tsx modal/table
+  visual language (portal-rendered modals, solid-in-light-mode cards).
+- **`pages/Settings.tsx` and `Settings.css` deleted.**
+- **Write/read gating applied across every page**:
+  - `Events.tsx` — "New Event", bulk-select checkboxes, per-row Edit/Delete
+    all hidden without `canWrite('events')`; whole page shows an
+    access-denied message without `canRead('events')`.
+  - `EventDetail.tsx` — module tabs filtered to `canRead(moduleId)`; the
+    active `EditableModule` gets a read-only banner instead of Edit/Save
+    when `!canWrite`; CSV upload (bulk-update) hidden unless the user has
+    write on all 6 sub-modules; shows "Last edited by" from `_last_edited`.
+  - `Governance.tsx` — access-denied gate on `!canRead('governance')`,
+    every input/textarea/select disabled and the Save button hidden
+    without `canWrite('governance')`, "Last edited by" shown.
+  - `Dashboard.tsx` — the Climate Finance and HR & Diversity tabs (the only
+    two with an actual write action) are hidden entirely without read
+    access, and their `EditableModule`s get the same read-only banner
+    treatment without write; the four aggregate-only tabs stay visible
+    since their data is already server-redacted per field.
+  - `SDGDashboard.tsx` — "Manage Goals" and the per-card threshold pencil
+    buttons hidden without `canWrite('sdg')`.
+- Verified end-to-end with Playwright against a mocked backend: admin sees
+  Team/Activity Log/Org Settings all functioning (create teammate with a
+  preset, activity log renders `field: old → new`, org settings load/save);
+  a read-only member sees no Admin tab, no write controls anywhere, but
+  still sees the data they're permitted to read.
 
-**`middleware/auth.js`** — after verifying the JWT, look up the user row
-fresh (one extra `select` per request) rather than trusting stale claims,
-so a permission change or deactivation takes effect immediately instead of
-waiting out a 24h token:
-- reject with 401 if `is_active = false`
-- attach `req.user = { id, email, organisation_id, role, module_permissions }`
+## 7. Build order — all four phases complete
 
-**New `middleware/requirePermission.js`**
-```js
-export const requirePermission = (moduleKey) => (req, res, next) => {
-  if (req.user.role === 'admin' || req.user.module_permissions?.[moduleKey]) {
-    return next();
-  }
-  res.status(403).json({ error: `No write access to ${moduleKey}.` });
-};
-```
-Applied to every mutating route:
-- `events.js`: `POST /`, `DELETE /:id` → `requirePermission('events')`
-- per-module save routes (`saveGreenOps`, `saveHealthSafety`,
-  `saveProcurement`, `saveEventFinancials`, `saveEventTimeline`,
-  `saveEventAttendance`) → matching module key
-- `governance.js` → `requirePermission('governance')`
-- `settings.js` → `requirePermission('settings')` (this also covers the
-  SDG per-year `tracked_sdgs_by_year` writes, since those live in
-  `app_settings` — tag those specifically as module `'sdg'` in the audit
-  log even though the route is shared with general settings)
+1. Schema + audit logging plumbing — done.
+2. Roles + read/write permission enforcement (backend) — done, including
+   the bootstrap/rollout SQL from §2.
+3. Admin UI — done, `Settings.tsx` deleted.
+4. Frontend read/write gating + "last edited by" — done.
 
-**New `middleware/requireRole.js`** (`admin` only) for the admin routes.
+## 8. Remaining before this is live
 
-**Audit logging helper (`utils/auditLog.js`)**
-```js
-export async function logAudit(req, { action, module, table, recordId, before, after }) {
-  const changes =
-    action === 'update' ? diffFields(before, after) :
-    action === 'delete' ? before : after;
-  await supabase.from('audit_log').insert({
-    organisation_id: req.user.organisation_id,
-    user_id: req.user.id,
-    user_email: req.user.email,
-    action, module, table_name: table, record_id: recordId, changes,
-  });
-}
-```
-Wired into every existing mutating route (events core + all 6 event
-modules, governance, settings/SDG). For updates, the route fetches the
-before-state first (already has to for most of these), diffs, then logs
-after the write succeeds — never blocks the response on log failure
-(log errors are caught/console'd, not surfaced to the user).
-
-**New `routes/admin.js`** (`requireAuth` + `requireRole('admin')`):
-- `GET  /api/admin/users` — list org's users + role + permissions + active
-- `POST /api/admin/users` — admin creates a teammate directly (email, temp
-  password, role, initial module_permissions) — bypasses the public
-  self-serve `/register` flow, which currently gives everyone equal access
-- `PATCH /api/admin/users/:id` — update role / module_permissions / is_active
-- `GET  /api/admin/audit-log` — paginated, filters: `?module=`, `?user_id=`,
-  `?from=`, `?to=`
-
-## 5. Frontend changes
-
-- **`contexts/AuthContext.tsx`** — extend `UserPayload` with `role` and
-  `module_permissions`; add `isAdmin` and `can(moduleKey)` helpers.
-- **`components/Layout.tsx`** — "Admin" nav tab, rendered only when `isAdmin`.
-- **New `pages/Admin.tsx`** (reuses Events.tsx's existing table/modal
-  visual patterns):
-  - **Team** tab — table of users (email, name, role, active toggle) with
-    a per-module permission checkbox grid; "Add Teammate" modal.
-  - **Activity Log** tab — table of audit entries (When / Who / Module /
-    Record / What Changed, rendered as `field: old → new`), filterable,
-    with CSV export (reusing the existing export pattern from
-    `Reporting.tsx`).
-- **Write-action gating** — hide "New Event"/"Delete"/"Save" etc. when
-  `!can(moduleKey)`. Backend is the real enforcement; this just avoids
-  people hitting 403s on buttons they can't use.
-- **"Last edited by" attribution** — Event Detail and Governance pages show
-  `Last edited by {email} · {relative time}`, sourced from the latest
-  `audit_log` row for that record. Answers "who changed this" inline
-  without opening the full admin log.
-
-## 6. Build order (each phase independently shippable)
-
-1. **Schema + audit logging plumbing** — add tables/columns, wire
-   `logAudit()` into every existing mutating route. Invisible to users;
-   every edit from this point on starts getting recorded, before any
-   permission enforcement exists.
-2. **Roles + permission enforcement (backend only)** — role/module_permissions
-   columns, `requirePermission`/`requireRole` middleware on every write
-   route, `/api/admin/*` routes. Existing users default to full access on
-   all modules so nothing breaks until an admin actually restricts someone.
-3. **Admin UI** — Team management + Activity Log pages.
-4. **Frontend gating + "last edited by" polish.**
-
-## 7. Open items before starting Phase 2+
-
-- **Who gets `role = 'admin'` first?** Need at least one email address to
-  promote manually right after migration — everyone else defaults to
-  `member` with empty `module_permissions` (i.e. no write access anywhere,
-  read-only, until an admin grants modules) — confirm that's the right
-  default vs. defaulting existing users to full access on all modules so
-  nothing breaks the day this ships.
-- **Settings module scope** — is "Settings" (carbon price, thresholds,
-  framework toggles) something any granted user should touch, or should it
-  always be admin-only regardless of `module_permissions`? Leaning
-  admin-only since it's system-wide config, not project data.
-- Confirm the module list above matches what the team actually thinks of
-  as separate access boundaries (e.g. should Green Ops / Health & Safety /
-  Procurement / Financial / Timeline / Attendance really be six separate
-  toggles, or would that be too fine-grained in practice and better
-  collapsed to one "Events" toggle covering all of a given event's data)?
+- **Run the migration.** `supabase/schema.sql` has not been applied to the
+  live Supabase database — needs `DB_PASSWORD`, which isn't available in
+  this environment. Run `node scripts/migrate.cjs` yourself.
+- **Restart the backend after migrating, not before.** `middleware/auth.js`
+  now selects `role`/`module_permissions`/`is_active` on every request;
+  those columns don't exist on the live DB until the migration runs, so
+  every authenticated request will 401 if the backend restarts first.
+- **Not built:** matrix-wide bulk actions ("grant read to all modules" /
+  "revoke all write" in one click) mentioned in §5 as a nice-to-have — the
+  matrix still requires per-checkbox clicks today.
+- **Not built:** email-based invites — `Admin → Team → Add Teammate`
+  creates the account directly with a temporary password shared
+  out-of-band, there's no email/invite-link flow.

@@ -1,46 +1,12 @@
 import express from 'express';
 import { supabase } from '../supabase.js';
 import { requireAuth } from '../middleware/auth.js';
+import { hasPermission } from '../middleware/permissions.js';
+import { logAudit } from '../utils/auditLog.js';
+import { STRATEGY_KEYS, HR_KEYS, CLIMATE_KEYS, redactGovernanceFields } from '../utils/fieldRedaction.js';
 
 const router = express.Router();
 router.use(requireAuth);
-
-const STRATEGY_KEYS = new Set([
-  // Existing governance fields
-  'gov_committee_name','gov_meeting_frequency','gov_board_oversight_text',
-  'gov_strategy_integration_text','gov_executive_accountability_text',
-  'risk_erm_integration_status','risk_identification_text','risk_assessment_text',
-  'strategy_short_text','strategy_medium_text','strategy_long_text','scenario_analysis_text',
-  // Strategy Integration Framework (new)
-  'gov_business_model_impact_text','gov_time_horizons_text',
-  // Executive Accountability Structure (new)
-  'gov_exec_name_role','gov_exec_kpi_pay_linked','gov_exec_kpi_pay_desc','gov_board_report_url',
-  // Risk Identification (new)
-  'risk_prioritisation_text','risk_review_frequency',
-  // ERM narrative (new)
-  'risk_register_mapping_text','risk_owner_assignment_text','risk_mitigation_actions_text',
-  // Climate Scenario split fields (new)
-  'scenario_scenarios_used_text','scenario_key_assumptions_text',
-  'scenario_resilience_summary_text','scenario_gaps_text',
-]);
-
-const HR_KEYS = new Set([
-  'emp_total','emp_female','emp_male',
-  'board_total','board_female','board_male',
-  'board_male_pct','board_female_pct',
-  'board_under30_pct','board_30to50_pct','board_over50_pct',
-  'emp_under30_pct','emp_30to50_pct','emp_over50_pct',
-  'anticorrupt_training_coverage','corruption_risk_assessment_pct','confirmed_corruption_incidents',
-]);
-
-const CLIMATE_KEYS = new Set([
-  'climate_transition_risk_rm','climate_transition_risk_pct',
-  'climate_physical_risk_rm','climate_physical_risk_pct',
-  'climate_chronic_risk_rm','climate_chronic_risk_pct',
-  'climate_opportunities_rm','climate_opportunities_pct',
-  'climate_capex_rm','internal_carbon_price','exec_climate_remun_pct',
-  'fin_position_impact_rm','fin_position_impact_pct','fin_position_time_horizon',
-]);
 
 // Meta fields from the GET response (merged from multiple tables) that must never
 // be written back — they would cause Supabase upsert to fail or produce conflicts.
@@ -50,7 +16,11 @@ const META_KEYS = new Set(['id','organisation_id','reporting_year','created_at',
 // frontend's year-default heuristic, which must not confuse "an event exists
 // for year X" (module_events) with "governance data exists for year X"
 // (module_strategy_risk / module_hr_diversity / module_climate_finance).
+// Requires read on at least one of the three org-level modules — this is a
+// low-sensitivity aggregate (just year strings), not gated more strictly.
 router.get('/years', async (req, res) => {
+  const canRead = ['governance', 'hr-diversity', 'climate-finance'].some(m => hasPermission(req.user, m, 'read'));
+  if (!canRead) return res.status(403).json({ error: 'No read access to governance data.' });
   try {
     const [sRes, hRes, cRes] = await Promise.all([
       supabase.from('module_strategy_risk').select('reporting_year').eq('organisation_id', req.user.organisation_id),
@@ -67,6 +37,8 @@ router.get('/years', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
+  const canRead = ['governance', 'hr-diversity', 'climate-finance'].some(m => hasPermission(req.user, m, 'read'));
+  if (!canRead) return res.status(403).json({ error: 'No read access to governance data.' });
   try {
     const year = req.query.year || '2025';
     const [sRes, hRes, cRes] = await Promise.all([
@@ -78,11 +50,29 @@ router.get('/', async (req, res) => {
         .select('*').eq('organisation_id', req.user.organisation_id).eq('reporting_year', year).maybeSingle(),
     ]);
 
-    res.json({
+    const merged = {
       ...(sRes.data  || {}),
       ...(hRes.data  || {}),
       ...(cRes.data  || {}),
-    });
+    };
+
+    // Most recent change across the three org-level modules for this year,
+    // for the "Last edited by" attribution shown on the Governance page.
+    const recordIds = [sRes.data?.id, hRes.data?.id, cRes.data?.id].filter(Boolean);
+    let lastEdit = null;
+    if (recordIds.length > 0) {
+      const { data } = await supabase
+        .from('audit_log')
+        .select('user_email, module, created_at')
+        .in('record_id', recordIds)
+        .eq('organisation_id', req.user.organisation_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      lastEdit = data || null;
+    }
+
+    res.json({ ...redactGovernanceFields(merged, req.user), _last_edited: lastEdit });
   } catch (err) {
     console.error('getCorporateGovernance error:', err);
     res.status(500).json({ error: err.message });
@@ -107,23 +97,41 @@ router.post('/', async (req, res) => {
     const baseHr       = { organisation_id: req.user.organisation_id, reporting_year: year, ...hr };
     const baseClimate  = { organisation_id: req.user.organisation_id, reporting_year: year, ...climate };
 
-    const results = await Promise.all([
-      Object.keys(strategy).length > 0
-        ? supabase.from('module_strategy_risk').upsert(baseStrategy, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(null),
-      Object.keys(hr).length > 0
-        ? supabase.from('module_hr_diversity').upsert(baseHr, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(null),
-      Object.keys(climate).length > 0
-        ? supabase.from('module_climate_finance').upsert(baseClimate, { onConflict: 'organisation_id,reporting_year' })
-        : Promise.resolve(null),
-    ]);
+    const GROUPS = [
+      { module: 'governance',      table: 'module_strategy_risk',   payload: strategy, base: baseStrategy },
+      { module: 'hr-diversity',    table: 'module_hr_diversity',    payload: hr,       base: baseHr },
+      { module: 'climate-finance', table: 'module_climate_finance', payload: climate,  base: baseClimate },
+    ].filter(g => Object.keys(g.payload).length > 0);
+
+    // Reject the whole save (no partial writes) if the user lacks write
+    // access to any module the submitted payload actually touches.
+    const forbidden = GROUPS.filter(g => !hasPermission(req.user, g.module, 'write'));
+    if (forbidden.length > 0) {
+      return res.status(403).json({ error: `No write access to: ${forbidden.map(g => g.module).join(', ')}.` });
+    }
+
+    const beforeRows = await Promise.all(
+      GROUPS.map(g => supabase.from(g.table)
+        .select('*').eq('organisation_id', req.user.organisation_id).eq('reporting_year', year).maybeSingle())
+    );
+
+    const results = await Promise.all(
+      GROUPS.map(g => supabase.from(g.table)
+        .upsert(g.base, { onConflict: 'organisation_id,reporting_year' })
+        .select().maybeSingle())
+    );
 
     // supabase-js upsert() resolves with {data, error} rather than throwing —
     // without this check, a failed upsert (e.g. an unrecognised column) was
     // silently swallowed and the frontend always reported "saved successfully".
     const failed = results.filter(r => r && r.error);
     if (failed.length > 0) throw new Error(failed.map(r => r.error.message).join('; '));
+
+    await Promise.all(GROUPS.map((g, i) => logAudit(req, {
+      action: 'update', module: g.module, table: g.table,
+      recordId: results[i]?.data?.id ?? beforeRows[i]?.data?.id,
+      before: beforeRows[i]?.data, after: results[i]?.data ?? g.base,
+    })));
 
     res.json({ success: true });
   } catch (err) {

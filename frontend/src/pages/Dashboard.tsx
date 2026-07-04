@@ -8,6 +8,7 @@ import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
 } from 'recharts';
 import { CHART_COLORS as C, truncateLabel as short, ChartTooltip, ChartEmpty, KpiCard, DonutChart, BarChartPanel, GaugeBar } from '../components/charts';
+import { useAuth } from '../contexts/AuthContext';
 import './Dashboard.css';
 
 /* ── Corporate-level field definitions ──────────────────────────── */
@@ -70,14 +71,20 @@ const Dashboard = () => {
   const [corp, setCorp]       = useState<any>({});
   const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events.map((e: any) => e.reporting_year));
   const [activeTab, setActiveTab]       = useState('green-ops');
+  const { canRead, canWrite, permissionsLoading } = useAuth();
+  const canReadEvents = canRead('events');
+  const canReadCorp = ['governance', 'hr-diversity', 'climate-finance'].some(m => canRead(m));
 
   useEffect(() => {
-    getEventsFull().then(setEvents);
-  }, []);
+    // Skip requests entirely without read access — they'd just 403. Most of
+    // this page is driven by event data, so without it the dashboard is
+    // mostly empty regardless — see the banner rendered below.
+    if (canReadEvents) getEventsFull().then(setEvents);
+  }, [canReadEvents]);
 
   useEffect(() => {
-    getCorporateGovernance(selectedYear).then(setCorp);
-  }, [selectedYear]);
+    if (canReadCorp) getCorporateGovernance(selectedYear).then(setCorp);
+  }, [selectedYear, canReadCorp]);
 
   const yearEvents = events.filter(e => e.reporting_year === selectedYear);
   const n = yearEvents.length || 1;
@@ -476,6 +483,11 @@ const Dashboard = () => {
   );
 
   /* ── Tab config ───────────────────────────────────────────────── */
+  // Aggregate-only tabs (green-ops/health-safety/procurement/financial) stay
+  // visible regardless of permission — they show event data the backend has
+  // already redacted per-field, so there's nothing further to hide here.
+  // climate-finance/hr-diversity are editable org-level modules in their own
+  // right, so they're hidden entirely if the user can't even read them.
   const TABS = [
     { id: 'green-ops',       label: 'Green Ops' },
     { id: 'health-safety',   label: 'Health, Safety & Labour' },
@@ -483,7 +495,7 @@ const Dashboard = () => {
     { id: 'financial',       label: 'Financial Summary' },
     { id: 'climate-finance', label: 'Climate Finance' },
     { id: 'hr-diversity',    label: 'Enterprise HR & Diversity' },
-  ];
+  ].filter(t => (t.id === 'climate-finance' || t.id === 'hr-diversity') ? canRead(t.id) : true);
 
   const renderAggModule = (title, IconComp, iconClass, fields, accentColor) => (
     <div className="glass-card aggregate-card">
@@ -534,7 +546,8 @@ const Dashboard = () => {
           <>
             {renderClimateFinanceCharts()}
             <EditableModule title="Climate Finance (IFRS S2)" icon={<Zap className="text-primary" />}
-              fields={CLIMATE_FINANCE_FIELDS} data={corp} onSave={handleCorpSave} />
+              fields={CLIMATE_FINANCE_FIELDS} data={corp} onSave={handleCorpSave}
+              readOnlyBanner={!canWrite('climate-finance') ? 'Read-only — you don\'t have write access to this module.' : undefined} />
           </>
         );
       case 'hr-diversity':
@@ -542,7 +555,8 @@ const Dashboard = () => {
           <>
             {renderHRCharts()}
             <EditableModule title="Enterprise HR & Diversity" icon={<Users className="text-info" />}
-              fields={HR_DIVERSITY_FIELDS} data={corp} onSave={handleCorpSave} />
+              fields={HR_DIVERSITY_FIELDS} data={corp} onSave={handleCorpSave}
+              readOnlyBanner={!canWrite('hr-diversity') ? 'Read-only — you don\'t have write access to this module.' : undefined} />
           </>
         );
       default:
@@ -614,6 +628,13 @@ const Dashboard = () => {
           </select>
         </div>
       </div>
+
+      {!permissionsLoading && !canReadEvents && (
+        <div className="glass-card no-access-card">
+          You don't have read access to Events, so most of this dashboard has no data to show.
+          Ask an admin to grant you read access.
+        </div>
+      )}
 
       {/* KPI Stat Cards */}
       <div className="kpi-row">

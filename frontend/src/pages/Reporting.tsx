@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getEventsFull, getCorporateGovernance, CSV_FIELDS } from '../utils/db';
 import { FileText, Download, CheckCircle, XCircle } from 'lucide-react';
 import { useReportingYear } from '../hooks/useReportingYear';
+import { useAuth } from '../contexts/AuthContext';
 import './Reporting.css';
 
 // One representative metric per Bursa Malaysia sustainability pillar this
@@ -67,8 +68,13 @@ const Reporting = () => {
   const [events, setEvents] = useState([]);
   const [corp, setCorp] = useState<any>({});
   const { selectedYear, setSelectedYear, availableYears } = useReportingYear(events.map((e: any) => e.reporting_year));
+  const { canRead } = useAuth();
+  const canReadEvents = canRead('events');
+  const canReadCorp = ['governance', 'hr-diversity', 'climate-finance'].some(m => canRead(m));
 
   useEffect(() => {
+    // Skip the request entirely without read access — it would just 403.
+    if (!canReadEvents) return;
     let active = true;
     const load = async () => {
       const data = await getEventsFull();
@@ -76,11 +82,11 @@ const Reporting = () => {
     };
     load();
     return () => { active = false; };
-  }, []);
+  }, [canReadEvents]);
 
   useEffect(() => {
-    getCorporateGovernance(selectedYear).then(setCorp);
-  }, [selectedYear]);
+    if (canReadCorp) getCorporateGovernance(selectedYear).then(setCorp);
+  }, [selectedYear, canReadCorp]);
 
   const currentEvents = events.filter(e => e.reporting_year === selectedYear);
   const isComplete = currentEvents.length > 0

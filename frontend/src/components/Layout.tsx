@@ -7,7 +7,7 @@ import logo from '../assets/GG Logo Transparent.png';
 import './Layout.css';
 
 const Layout = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,7 @@ const Layout = () => {
     { name: 'Events', path: '/events' },
     { name: 'Governance', path: '/governance' },
     { name: 'SDG', path: '/sdg' },
+    ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
   // Get initial character from user email

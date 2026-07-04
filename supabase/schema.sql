@@ -623,3 +623,108 @@ alter table public.module_hr_diversity
   add column if not exists emp_30to50_pct  float8 not null default 0,
   add column if not exists emp_over50_pct  float8 not null default 0;
 
+-- ═══════════════════════════════════════════════════════════════════
+-- MIGRATIONS: Multi-user accounts, per-module permissions, audit trail
+-- See plan.md at the repo root for the full design.
+-- Defensive create — `users` predates this file and lives only in the
+-- live database, so this only fills in what's missing rather than
+-- assuming a from-scratch table.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.users (
+  id                uuid        default gen_random_uuid() primary key,
+  email             text        not null unique,
+  password_hash     text        not null,
+  organisation_id   uuid        not null references public.organisations(id),
+  created_at        timestamptz not null default now()
+);
+
+alter table public.users
+  add column if not exists full_name          text,
+  add column if not exists role               text not null default 'member',
+  add column if not exists module_permissions jsonb not null default '{}'::jsonb,
+  add column if not exists is_active          boolean not null default true,
+  add column if not exists last_login_at      timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'users_role_check'
+  ) then
+    alter table public.users
+      add constraint users_role_check check (role in ('admin', 'member'));
+  end if;
+end $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+-- TABLE: audit_log — who changed what, when, and the before/after values.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.audit_log (
+  id               uuid        default gen_random_uuid() primary key,
+  organisation_id  uuid        not null references public.organisations(id),
+  user_id          uuid        references public.users(id),
+  user_email       text        not null,
+  action           text        not null check (action in ('create','update','delete')),
+  module           text        not null,
+  table_name       text        not null,
+  record_id        uuid,
+  changes          jsonb       not null default '{}'::jsonb,
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists audit_log_org_time_idx
+  on public.audit_log (organisation_id, created_at desc);
+create index if not exists audit_log_record_idx
+  on public.audit_log (record_id);
+
+alter table public.audit_log enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies where tablename = 'audit_log' and policyname = 'anon_all'
+  ) then
+    create policy anon_all on public.audit_log for all to anon using (true) with check (true);
+  end if;
+end $$;
+
+-- Bootstrap: every organisation needs at least one admin so someone can
+-- grant permissions through the new Team UI. If an org has no admin yet,
+-- promote its earliest-created user. Resolves plan.md §8's "who becomes
+-- admin first" open item without needing manual DB access — re-running
+-- this migration is a no-op for orgs that already have an admin.
+do $$
+declare
+  org record;
+  first_user_id uuid;
+begin
+  for org in select id from public.organisations loop
+    if not exists (
+      select 1 from public.users where organisation_id = org.id and role = 'admin'
+    ) then
+      select id into first_user_id from public.users
+        where organisation_id = org.id order by created_at asc limit 1;
+      if first_user_id is not null then
+        update public.users set role = 'admin' where id = first_user_id;
+      end if;
+    end if;
+  end loop;
+end $$;
+
+-- Rollout safety: resolves plan.md §8's other open item in favour of the
+-- softer option — every user that already exists as of this migration is
+-- back-filled with full read+write on every module, so nobody is locked
+-- out of data they could see a moment before this shipped. New users
+-- created afterward via the Admin > Team UI start with zero permissions
+-- (least-privilege default — see routes/admin.js) and an admin grants
+-- access deliberately. The `where module_permissions = '{}'` guard makes
+-- this safe to re-run: it only fills in rows nobody has customized yet.
+update public.users
+set module_permissions = (
+  select jsonb_object_agg(m, jsonb_build_object('read', true, 'write', true))
+  from unnest(array[
+    'events','green-ops','health-safety','procurement','financial',
+    'timeline','attendance','governance','hr-diversity','climate-finance','sdg'
+  ]) as m
+)
+where module_permissions = '{}'::jsonb;
+

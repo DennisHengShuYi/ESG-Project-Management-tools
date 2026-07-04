@@ -9,6 +9,7 @@ import {
 import { ArrowLeft, Cloud, ShieldAlert, HeartHandshake, DollarSign, Clock, Users, Download, Upload } from 'lucide-react';
 import EditableModule from '../components/EditableModule';
 import { KpiCard, DonutChart, BarChartPanel, GaugeBar, ChartEmpty, CHART_COLORS as C } from '../components/charts';
+import { useAuth } from '../contexts/AuthContext';
 import './EventDetail.css';
 
 /* ── Field definitions per module ─────────────────────────────────── */
@@ -380,22 +381,49 @@ const EventDetail = () => {
   const [dataVersion, setDataVersion]   = useState(0);   // bumped after CSV upload to force remount
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { canRead, canWrite, permissionsLoading } = useAuth();
+  const canReadEvents = canRead('events');
 
   useEffect(() => {
-    getEventDetail(id).then(data => { if (data) setEvent(normaliseEvent(data)); });
-  }, [id]);
+    // Skip the request entirely without read access — it would just 403.
+    // Wait for permissions to actually resolve first so we don't flag a
+    // real event as "no access" during the brief window before /me returns.
+    if (permissionsLoading) return;
+    if (!canReadEvents) { setLoadFailed(true); return; }
+    getEventDetail(id).then(data => {
+      if (data) setEvent(normaliseEvent(data));
+      else setLoadFailed(true);
+    });
+  }, [id, canReadEvents, permissionsLoading]);
 
+  if (permissionsLoading) return <div className="loading">Loading…</div>;
+
+  if (loadFailed) {
+    return (
+      <div className="event-detail-container animate-fade-in">
+        <div className="glass-card no-access-card">
+          Couldn't load this event — you may not have access to it. Ask an admin to grant you read access to Events.
+        </div>
+      </div>
+    );
+  }
   if (!event) return <div className="loading">Loading…</div>;
+
+  const visibleTabs = MODULE_TABS.filter(t => canRead(t.id));
+  const effectiveModule = visibleTabs.some(t => t.id === activeModule) ? activeModule : visibleTabs[0]?.id;
 
   const handleModuleSave = async (updatedFields) => {
     const merged = { ...event, ...updatedFields };
-    const saveFn = MODULE_SAVE[activeModule];
+    const saveFn = MODULE_SAVE[effectiveModule];
     if (saveFn) await saveFn(event.id, merged);
     const refreshed = await getEventDetail(event.id);
     if (refreshed) setEvent(normaliseEvent(refreshed));
     else setEvent(merged);
   };
+
+  const canBulkUpdate = Object.keys(MODULE_SAVE).every(m => canWrite(m));
 
   const handleDownloadCsv = () => {
     downloadEventCsv(event);
@@ -432,7 +460,7 @@ const EventDetail = () => {
     }
   };
 
-  const currentModule = MODULE_TABS.find(t => t.id === activeModule);
+  const currentModule = MODULE_TABS.find(t => t.id === effectiveModule);
   const ModuleIcon = currentModule?.icon;
 
   return (
@@ -450,6 +478,11 @@ const EventDetail = () => {
               </span>
             </div>
             <p className="text-secondary">{event.client_name} • {event.event_location}</p>
+            {event._last_edited && (
+              <p className="last-edited-note">
+                Last edited by {event._last_edited.user_email} · {new Date(event._last_edited.created_at).toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
 
@@ -463,15 +496,17 @@ const EventDetail = () => {
             <Download size={15} />
             Download CSV
           </button>
-          <button
-            className="btn-csv btn-csv-upload"
-            onClick={handleUploadClick}
-            disabled={uploadStatus === 'loading'}
-            title="Upload modified CSV to update all metrics"
-          >
-            <Upload size={15} />
-            {uploadStatus === 'loading' ? 'Uploading…' : 'Upload CSV'}
-          </button>
+          {canBulkUpdate && (
+            <button
+              className="btn-csv btn-csv-upload"
+              onClick={handleUploadClick}
+              disabled={uploadStatus === 'loading'}
+              title="Upload modified CSV to update all metrics"
+            >
+              <Upload size={15} />
+              {uploadStatus === 'loading' ? 'Uploading…' : 'Upload CSV'}
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -489,29 +524,38 @@ const EventDetail = () => {
         </div>
       )}
 
-      <div className="module-tabs">
-        {MODULE_TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`module-tab-btn ${activeModule === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveModule(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {visibleTabs.length > 0 ? (
+        <>
+          <div className="module-tabs">
+            {visibleTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`module-tab-btn ${effectiveModule === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveModule(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-      {currentModule && (
-        <div className="mt-4 event-module-content" key={`${activeModule}-${dataVersion}`}>
-          {MODULE_CHARTS[activeModule]?.(event)}
-          <EditableModule
-            title={currentModule.label}
-            icon={<ModuleIcon className={currentModule.colorClass} />}
-            fields={currentModule.fields}
-            data={event}
-            onSave={handleModuleSave}
-            accentColor={currentModule.accentColor}
-          />
+          {currentModule && (
+            <div className="mt-4 event-module-content" key={`${effectiveModule}-${dataVersion}`}>
+              {MODULE_CHARTS[effectiveModule]?.(event)}
+              <EditableModule
+                title={currentModule.label}
+                icon={<ModuleIcon className={currentModule.colorClass} />}
+                fields={currentModule.fields}
+                data={event}
+                onSave={handleModuleSave}
+                accentColor={currentModule.accentColor}
+                readOnlyBanner={!canWrite(effectiveModule) ? 'Read-only — you don\'t have write access to this module.' : undefined}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="glass-card no-access-card">
+          You don't have read access to any module of this event.
         </div>
       )}
     </div>

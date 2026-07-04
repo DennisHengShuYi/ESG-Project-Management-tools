@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getEvents, saveEvent, deleteEvent } from '../utils/db';
 import { Plus, Search, Calendar, MapPin, Pencil, Trash2, X, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Events.css';
 
 const STATUSES = ['Draft', 'Planned', 'Active', 'Completed'];
@@ -230,10 +231,14 @@ const Events = () => {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const selectAllRef = useRef(null);
   const navigate = useNavigate();
+  const { canRead, canWrite, permissionsLoading } = useAuth();
+  const canReadEvents  = canRead('events');
+  const canWriteEvents = canWrite('events');
 
   useEffect(() => {
-    getEvents().then(setEvents);
-  }, []);
+    // Skip the request entirely without read access — it would just 403.
+    if (canReadEvents) getEvents().then(setEvents);
+  }, [canReadEvents]);
 
   const filtered = events.filter(e => {
     const q = searchTerm.toLowerCase();
@@ -308,6 +313,23 @@ const Events = () => {
   const clearSelection = () => setSelectedIds(new Set());
   const selectedEvents = events.filter(e => selectedIds.has(e.id));
 
+  if (permissionsLoading) return <div className="loading">Loading…</div>;
+
+  if (!canReadEvents) {
+    return (
+      <div className="events-container animate-fade-in">
+        <div className="page-header">
+          <div>
+            <h2>Events &amp; Projects</h2>
+          </div>
+        </div>
+        <div className="glass-card no-access-card">
+          You don't have access to Events. Ask an admin to grant you read access.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="events-container animate-fade-in">
       {/* Page header */}
@@ -316,9 +338,11 @@ const Events = () => {
           <h2>Events &amp; Projects</h2>
           <p className="text-secondary">Manage and track all individual events and projects.</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <Plus size={18} /> New Event
-        </button>
+        {canWriteEvents && (
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={18} /> New Event
+          </button>
+        )}
       </div>
 
       {/* Summary chips */}
@@ -349,7 +373,7 @@ const Events = () => {
               className="search-input"
             />
           </div>
-          {selectedIds.size > 0 ? (
+          {canWriteEvents && selectedIds.size > 0 ? (
             <div className="bulk-actions">
               <span className="bulk-count">{selectedIds.size} selected</span>
               <button className="btn btn-secondary btn-sm" onClick={clearSelection}>Clear</button>
@@ -368,15 +392,17 @@ const Events = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th className="checkbox-col">
-                  <input
-                    type="checkbox"
-                    ref={selectAllRef}
-                    checked={allFilteredSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all events"
-                  />
-                </th>
+                {canWriteEvents && (
+                  <th className="checkbox-col">
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all events"
+                    />
+                  </th>
+                )}
                 <th>Event Name</th>
                 <th>Client</th>
                 <th>Start Date</th>
@@ -393,14 +419,16 @@ const Events = () => {
                   onClick={() => navigate(`/events/${event.id}`)}
                   className={`clickable-row ${selectedIds.has(event.id) ? 'row-selected' : ''}`}
                 >
-                  <td className="checkbox-col" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(event.id)}
-                      onChange={e => toggleRow(event.id, e)}
-                      aria-label={`Select ${event.event_name}`}
-                    />
-                  </td>
+                  {canWriteEvents && (
+                    <td className="checkbox-col" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(event.id)}
+                        onChange={e => toggleRow(event.id, e)}
+                        aria-label={`Select ${event.event_name}`}
+                      />
+                    </td>
+                  )}
                   <td className="font-medium">{event.event_name}</td>
                   <td className="text-secondary">{event.client_name || '—'}</td>
                   <td>
@@ -422,19 +450,21 @@ const Events = () => {
                     </span>
                   </td>
                   <td>
-                    <div className="action-btns" onClick={e => e.stopPropagation()}>
-                      <button className="btn-icon" title="Edit" onClick={e => openEdit(event, e)}>
-                        <Pencil size={15} />
-                      </button>
-                      <button className="btn-icon btn-icon-danger" title="Delete" onClick={e => openDelete(event, e)}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                    {canWriteEvents && (
+                      <div className="action-btns" onClick={e => e.stopPropagation()}>
+                        <button className="btn-icon" title="Edit" onClick={e => openEdit(event, e)}>
+                          <Pencil size={15} />
+                        </button>
+                        <button className="btn-icon btn-icon-danger" title="Delete" onClick={e => openDelete(event, e)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={8} className="empty-row">
+                  <td colSpan={canWriteEvents ? 8 : 7} className="empty-row">
                     {searchTerm || statusFilter !== 'All'
                       ? 'No events match your search.'
                       : 'No events yet — create your first event.'}

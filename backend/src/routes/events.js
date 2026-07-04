@@ -2,7 +2,10 @@ import express from 'express';
 import { supabase } from '../supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireEventOwnership } from '../middleware/requireEventOwnership.js';
+import { requirePermission, hasPermission } from '../middleware/permissions.js';
 import { checkEventOwnership } from '../utils/checkEventOwnership.js';
+import { logAudit } from '../utils/auditLog.js';
+import { redactEventFields } from '../utils/fieldRedaction.js';
 import {
   mapGreenOps,
   mapHealthSafety,
@@ -15,8 +18,13 @@ import {
 const router = express.Router();
 router.use(requireAuth);
 
+// Modules touched by a full CSV bulk-update — all must be write-permitted,
+// otherwise a partial upload could silently skip a module the uploader
+// isn't actually allowed to change while reporting overall success.
+const BULK_UPDATE_MODULES = ['green-ops', 'health-safety', 'procurement', 'financial', 'timeline', 'attendance'];
+
 // ── Events (core fields, scoped) ─────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('events', 'read'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('events')
@@ -34,7 +42,7 @@ router.get('/', async (req, res) => {
 
 // ── Events (full flat view, scoped) ──────────────────────────────
 // Must be registered before '/:id' so 'full' isn't swallowed by the wildcard.
-router.get('/full', async (req, res) => {
+router.get('/full', requirePermission('events', 'read'), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('events_flat')
@@ -42,7 +50,7 @@ router.get('/full', async (req, res) => {
       .eq('organisation_id', req.user.organisation_id)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    res.json(data);
+    res.json(data.map(e => redactEventFields(e, req.user)));
   } catch (err) {
     console.error('getEventsFull error:', err);
     res.status(500).json({ error: err.message });
@@ -50,7 +58,7 @@ router.get('/full', async (req, res) => {
 });
 
 // ── Single event with all module data (scoped) ───────────────────
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('events', 'read'), async (req, res) => {
   try {
     // Primary flat view
     const { data, error } = await supabase
@@ -81,7 +89,18 @@ router.get('/:id', async (req, res) => {
       team_size_total: data.team_size_total ?? tl?.team_size ?? null,
     };
 
-    res.json(merged);
+    // Most recent change to any module of this event, for the "Last edited
+    // by" attribution shown on the event detail page.
+    const { data: lastEdit } = await supabase
+      .from('audit_log')
+      .select('user_email, module, created_at')
+      .eq('record_id', req.params.id)
+      .eq('organisation_id', req.user.organisation_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    res.json({ ...redactEventFields(merged, req.user), _last_edited: lastEdit || null });
   } catch (err) {
     console.error('getEventDetail error:', err);
     res.status(500).json({ error: err.message });
@@ -89,7 +108,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── Save / upsert core event fields (scoped) ─────────────────────
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('events', 'write'), async (req, res) => {
   try {
     const eventData = req.body;
     const CORE_FIELDS = [
@@ -118,14 +137,18 @@ router.post('/', async (req, res) => {
         return res.status(403).json({ error: 'Access Denied: Event does not belong to your organization.' });
       }
 
+      const { data: before } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
+
       const { data, error } = await supabase
         .from('events').update(fields).eq('id', id).select().single();
       if (error) throw error;
+      await logAudit(req, { action: 'update', module: 'events', table: 'events', recordId: id, before, after: data });
       res.json(data);
     } else {
       const { data, error } = await supabase
         .from('events').insert(fields).select().single();
       if (error) throw error;
+      await logAudit(req, { action: 'create', module: 'events', table: 'events', recordId: data.id, after: data });
       res.json(data);
     }
   } catch (err) {
@@ -135,13 +158,16 @@ router.post('/', async (req, res) => {
 });
 
 // Soft delete (scoped)
-router.delete('/:id', requireEventOwnership, async (req, res) => {
+router.delete('/:id', requireEventOwnership, requirePermission('events', 'write'), async (req, res) => {
   try {
+    const { data: before } = await supabase.from('events').select('*').eq('id', req.params.id).maybeSingle();
+
     const { error } = await supabase
       .from('events')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', req.params.id);
     if (error) throw error;
+    await logAudit(req, { action: 'delete', module: 'events', table: 'events', recordId: req.params.id, before });
     res.json({ success: true });
   } catch (err) {
     console.error('deleteEvent error:', err);
@@ -152,17 +178,33 @@ router.delete('/:id', requireEventOwnership, async (req, res) => {
 // ── Bulk update all modules at once (used by CSV upload) ─────────
 router.post('/:id/bulk-update', requireEventOwnership, async (req, res) => {
   try {
+    // Requires write on every module the CSV upload touches — a partial
+    // permission set would otherwise silently skip modules the uploader
+    // isn't allowed to change while still reporting overall success.
+    const missing = BULK_UPDATE_MODULES.filter(m => !hasPermission(req.user, m, 'write'));
+    if (missing.length > 0) {
+      return res.status(403).json({ error: `No write access to: ${missing.join(', ')}.` });
+    }
+
     const flat = req.body;
     const eventId = req.params.id;
 
-    const results = await Promise.allSettled([
-      supabase.from('module_green_ops').upsert({ event_id: eventId, ...mapGreenOps(flat) }, { onConflict: 'event_id' }),
-      supabase.from('module_health_safety_labour').upsert({ event_id: eventId, ...mapHealthSafety(flat) }, { onConflict: 'event_id' }),
-      supabase.from('module_procurement_community').upsert({ event_id: eventId, ...mapProcurement(flat) }, { onConflict: 'event_id' }),
-      supabase.from('event_financials').upsert({ event_id: eventId, ...mapFinancials(flat) }, { onConflict: 'event_id' }),
-      supabase.from('event_timeline').upsert({ event_id: eventId, ...mapTimeline(flat) }, { onConflict: 'event_id' }),
-      supabase.from('event_attendance').upsert({ event_id: eventId, ...mapAttendance(flat) }, { onConflict: 'event_id' }),
-    ]);
+    const BULK_MODULES = [
+      { module: 'green-ops',     table: 'module_green_ops',            row: mapGreenOps(flat) },
+      { module: 'health-safety', table: 'module_health_safety_labour', row: mapHealthSafety(flat) },
+      { module: 'procurement',   table: 'module_procurement_community', row: mapProcurement(flat) },
+      { module: 'financial',     table: 'event_financials',            row: mapFinancials(flat) },
+      { module: 'timeline',      table: 'event_timeline',              row: mapTimeline(flat) },
+      { module: 'attendance',    table: 'event_attendance',            row: mapAttendance(flat) },
+    ];
+
+    const beforeRows = await Promise.all(
+      BULK_MODULES.map(m => supabase.from(m.table).select('*').eq('event_id', eventId).maybeSingle())
+    );
+
+    const results = await Promise.allSettled(
+      BULK_MODULES.map(m => supabase.from(m.table).upsert({ event_id: eventId, ...m.row }, { onConflict: 'event_id' }))
+    );
 
     const errors = results
       .filter(r => r.status === 'rejected' || r.value?.error)
@@ -172,6 +214,11 @@ router.post('/:id/bulk-update', requireEventOwnership, async (req, res) => {
       return res.status(500).json({ error: 'Some modules failed to save: ' + errors.join('; ') });
     }
 
+    await Promise.all(BULK_MODULES.map((m, i) => logAudit(req, {
+      action: 'update', module: m.module, table: m.table, recordId: eventId,
+      before: beforeRows[i]?.data, after: { event_id: eventId, ...m.row },
+    })));
+
     res.json({ success: true });
   } catch (err) {
     console.error('bulkUpdate error:', err);
@@ -180,13 +227,15 @@ router.post('/:id/bulk-update', requireEventOwnership, async (req, res) => {
 });
 
 // ── Module A: Green Ops (scoped) ─────────────────────────────────
-router.post('/:id/green-ops', requireEventOwnership, async (req, res) => {
+router.post('/:id/green-ops', requireEventOwnership, requirePermission('green-ops', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapGreenOps(req.body) };
+    const { data: before } = await supabase.from('module_green_ops').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('module_green_ops')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'green-ops', table: 'module_green_ops', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveGreenOps error:', err);
@@ -195,13 +244,15 @@ router.post('/:id/green-ops', requireEventOwnership, async (req, res) => {
 });
 
 // ── Module B: Health, Safety & Labour (scoped) ──────────────────
-router.post('/:id/health-safety', requireEventOwnership, async (req, res) => {
+router.post('/:id/health-safety', requireEventOwnership, requirePermission('health-safety', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapHealthSafety(req.body) };
+    const { data: before } = await supabase.from('module_health_safety_labour').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('module_health_safety_labour')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'health-safety', table: 'module_health_safety_labour', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveHealthSafety error:', err);
@@ -210,13 +261,15 @@ router.post('/:id/health-safety', requireEventOwnership, async (req, res) => {
 });
 
 // ── Module C: Procurement & Community (scoped) ──────────────────
-router.post('/:id/procurement', requireEventOwnership, async (req, res) => {
+router.post('/:id/procurement', requireEventOwnership, requirePermission('procurement', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapProcurement(req.body) };
+    const { data: before } = await supabase.from('module_procurement_community').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('module_procurement_community')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'procurement', table: 'module_procurement_community', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveProcurement error:', err);
@@ -225,13 +278,15 @@ router.post('/:id/procurement', requireEventOwnership, async (req, res) => {
 });
 
 // ── Event Financials (scoped) ────────────────────────────────────
-router.post('/:id/financials', requireEventOwnership, async (req, res) => {
+router.post('/:id/financials', requireEventOwnership, requirePermission('financial', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapFinancials(req.body) };
+    const { data: before } = await supabase.from('event_financials').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('event_financials')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'financial', table: 'event_financials', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveEventFinancials error:', err);
@@ -240,13 +295,15 @@ router.post('/:id/financials', requireEventOwnership, async (req, res) => {
 });
 
 // ── Event Timeline (scoped) ──────────────────────────────────────
-router.post('/:id/timeline', requireEventOwnership, async (req, res) => {
+router.post('/:id/timeline', requireEventOwnership, requirePermission('timeline', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapTimeline(req.body) };
+    const { data: before } = await supabase.from('event_timeline').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('event_timeline')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'timeline', table: 'event_timeline', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveEventTimeline error:', err);
@@ -255,13 +312,15 @@ router.post('/:id/timeline', requireEventOwnership, async (req, res) => {
 });
 
 // ── Event Attendance (scoped) ────────────────────────────────────
-router.post('/:id/attendance', requireEventOwnership, async (req, res) => {
+router.post('/:id/attendance', requireEventOwnership, requirePermission('attendance', 'write'), async (req, res) => {
   try {
     const row = { event_id: req.params.id, ...mapAttendance(req.body) };
+    const { data: before } = await supabase.from('event_attendance').select('*').eq('event_id', req.params.id).maybeSingle();
     const { error } = await supabase
       .from('event_attendance')
       .upsert(row, { onConflict: 'event_id' });
     if (error) throw error;
+    await logAudit(req, { action: 'update', module: 'attendance', table: 'event_attendance', recordId: req.params.id, before, after: row });
     res.json({ success: true });
   } catch (err) {
     console.error('saveEventAttendance error:', err);

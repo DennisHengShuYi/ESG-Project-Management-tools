@@ -2,18 +2,24 @@ import { useState, useEffect } from 'react';
 import { getGovernanceYears, getCorporateGovernance, saveCorporateGovernance } from '../utils/db';
 import { Save } from 'lucide-react';
 import { useReportingYear } from '../hooks/useReportingYear';
+import { useAuth } from '../contexts/AuthContext';
 import './Governance.css';
 
 const Governance = () => {
   const [formData, setFormData] = useState(null);
   const [governanceYears, setGovernanceYears] = useState<string[]>([]);
   const { selectedYear, setSelectedYear, availableYears } = useReportingYear(governanceYears);
+  const { canRead, canWrite, permissionsLoading } = useAuth();
+  const canReadGov  = canRead('governance');
+  const canWriteGov = canWrite('governance');
 
   useEffect(() => {
-    getGovernanceYears().then(setGovernanceYears);
-  }, []);
+    // Skip the request entirely without read access — it would just 403.
+    if (canReadGov) getGovernanceYears().then(setGovernanceYears);
+  }, [canReadGov]);
 
   useEffect(() => {
+    if (!canReadGov) return;
     let active = true;
     const load = async () => {
       const data = await getCorporateGovernance(selectedYear);
@@ -21,7 +27,7 @@ const Governance = () => {
     };
     load();
     return () => { active = false; };
-  }, [selectedYear]);
+  }, [selectedYear, canReadGov]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -42,6 +48,21 @@ const Governance = () => {
     }
   };
 
+  if (permissionsLoading) return <div>Loading...</div>;
+
+  if (!canReadGov) {
+    return (
+      <div className="gov-container animate-fade-in">
+        <div className="page-header">
+          <div><h2>Corporate Governance</h2></div>
+        </div>
+        <div className="glass-card no-access-card">
+          You don't have access to Governance. Ask an admin to grant you read access.
+        </div>
+      </div>
+    );
+  }
+
   if (!formData) return <div>Loading...</div>;
 
   const tf = (name: string, rows = 3) => (
@@ -51,6 +72,7 @@ const Governance = () => {
       name={name}
       value={formData[name] || ''}
       onChange={e => handleTextChange(name, e.target.value)}
+      disabled={!canWriteGov}
     />
   );
 
@@ -58,7 +80,8 @@ const Governance = () => {
     <input type="text" name={name} className="input-field"
       placeholder={placeholder}
       value={formData[name] || ''}
-      onChange={handleInputChange} />
+      onChange={handleInputChange}
+      disabled={!canWriteGov} />
   );
 
   return (
@@ -67,14 +90,21 @@ const Governance = () => {
         <div>
           <h2>Corporate Governance</h2>
           <p className="text-secondary">IFRS S1 narrative disclosures — Governance, Strategy, Risk Management and Targets.</p>
+          {formData._last_edited && (
+            <p className="last-edited-note">
+              Last edited by {formData._last_edited.user_email} · {new Date(formData._last_edited.created_at).toLocaleString()}
+            </p>
+          )}
         </div>
         <div className="header-actions">
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={handleSave}>
-            <Save size={18} /> Save Data
-          </button>
+          {canWriteGov && (
+            <button className="btn btn-primary" onClick={handleSave}>
+              <Save size={18} /> Save Data
+            </button>
+          )}
         </div>
       </div>
 
@@ -136,6 +166,7 @@ const Governance = () => {
                 name="gov_exec_kpi_pay_linked"
                 checked={!!formData.gov_exec_kpi_pay_linked}
                 onChange={handleInputChange}
+                disabled={!canWriteGov}
               />
               &nbsp;Sustainability KPIs Linked to Executive Pay
             </label>
@@ -217,7 +248,7 @@ const Governance = () => {
           <div className="form-row">
             <div className="form-group">
               <label>ERM Integration Status</label>
-              <select name="risk_erm_integration_status" value={formData.risk_erm_integration_status || ''} onChange={handleInputChange} className="input-field">
+              <select name="risk_erm_integration_status" value={formData.risk_erm_integration_status || ''} onChange={handleInputChange} className="input-field" disabled={!canWriteGov}>
                 <option value="Fully Integrated">Fully Integrated</option>
                 <option value="Partially Integrated">Partially Integrated</option>
                 <option value="Not Yet Integrated">Not Yet Integrated</option>

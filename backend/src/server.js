@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import eventsRoutes from './routes/events.js';
 import governanceRoutes from './routes/governance.js';
 import settingsRoutes from './routes/settings.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/governance', governanceRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
