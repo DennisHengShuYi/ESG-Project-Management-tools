@@ -102,6 +102,7 @@ const SDGDashboard = () => {
 
   /* ── Aggregate helpers ────────────────────────────────────────────── */
   const yearEvents  = events.filter((e: any) => e.reporting_year === selectedYear);
+  const hasEvents   = yearEvents.length > 0;
   const n           = yearEvents.length || 1;
   const sum         = (key: string) => yearEvents.reduce((a, c: any) => a + (Number(c[key]) || 0), 0);
   const avg         = (key: string) => sum(key) / n;
@@ -506,7 +507,16 @@ const SDGDashboard = () => {
         },
       ],
     },
-  ];
+  ].map(s => {
+    if (!hasEvents) {
+      return {
+        ...s,
+        status: STATUS.NOT_STARTED,
+        pct: 0
+      };
+    }
+    return s;
+  });
 
   /* Goals with no computed logic yet (added from the catalog but not one of
      the 10 built-in ones) render as an untracked placeholder rather than a
