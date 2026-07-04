@@ -74,7 +74,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // permission change or deactivation is reflected without
         // requiring the user to log out and back in.
         fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-          .then(res => (res.ok ? res.json() : null))
+          .then(res => {
+            if (res.status === 401) {
+              // The JWT decoded fine client-side (structurally valid, not
+              // expired) but the backend rejects it — forged/tampered
+              // signature, or the account was deleted/deactivated since the
+              // token was issued. Without this, the optimistic decode above
+              // stays in place forever: the dashboard renders under a
+              // identity the backend has already revoked, with every
+              // subsequent API call 401ing silently instead of the user
+              // ever seeing a clear "log in again" message.
+              localStorage.removeItem('token');
+              sessionStorage.setItem('auth_message', 'Your session has expired. Please log in again.');
+              setUser(null);
+              return null;
+            }
+            return res.ok ? res.json() : null;
+          })
           .then(me => { if (me) setUser(me); })
           .catch(() => {})
           .finally(() => setPermissionsLoading(false));

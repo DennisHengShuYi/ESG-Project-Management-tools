@@ -137,49 +137,4 @@ router.get('/audit-log', async (req, res) => {
   }
 });
 
-// ── Org settings (retired Settings.tsx content — admin-only) ──────
-// Shares the same app_settings singleton row as /api/settings (SDG
-// thresholds + tracked goals), so writes here merge into the existing
-// blob rather than replacing it wholesale — otherwise saving org config
-// would silently wipe out unrelated SDG settings stored in the same row.
-router.get('/org-settings', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('app_settings').select('*').limit(1).single();
-    if (error) throw error;
-    res.json(data?.data || {});
-  } catch (err) {
-    console.error('adminGetOrgSettings error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/org-settings', async (req, res) => {
-  try {
-    const incoming = req.body;
-    const { data: existing } = await supabase
-      .from('app_settings').select('id, data').limit(1).single();
-
-    if (existing?.id) {
-      const merged = { ...(existing.data || {}), ...incoming };
-      const { error } = await supabase.from('app_settings').update({ data: merged }).eq('id', existing.id);
-      if (error) throw error;
-      await logAudit(req, {
-        action: 'update', module: 'settings', table: 'app_settings', recordId: existing.id,
-        before: existing.data, after: merged,
-      });
-    } else {
-      const { data, error } = await supabase.from('app_settings').insert({ data: incoming }).select().single();
-      if (error) throw error;
-      await logAudit(req, {
-        action: 'create', module: 'settings', table: 'app_settings', recordId: data.id, after: incoming,
-      });
-    }
-    res.json({ success: true });
-  } catch (err) {
-    console.error('adminSaveOrgSettings error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 export default router;

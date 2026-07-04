@@ -1,58 +1,69 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — "Field Ledger"
+   Green Generation tracks the physical reality of running events — fuel,
+   water, crews, waste, spend — and turns it into board-auditable numbers.
+   The palette and type below are drawn from that world: a moss-green
+   ledger cover, warm site-report paper, a brass "certified" stamp, and
+   the burnt-orange of event-site hazard signage (echoing the app's own
+   Health & Safety module). Every measured figure renders in a monospace
+   with tabular numerals — the one signature carried through every page —
+   so the app reads as something audited, not just another dashboard.
+   ═══════════════════════════════════════════════════════════════════ */
 :root {
-  /* Colors */
-  --primary-color: #10B981; /* Green 500 */
-  --primary-dark: #059669; /* Green 600 */
-  --primary-light: #6EE7B7; /* Green 300 */
-  
-  --secondary-color: #3B82F6; /* Blue 500 */
-  
-  --background: #F9FAFB; /* Gray 50 */
-  --surface: #FFFFFF;
-  --surface-hover: #F3F4F6;
-  
-  --text-primary: #111827; /* Gray 900 */
-  --text-secondary: #4B5563; /* Gray 600 */
-  /* Gray 400 (#9CA3AF) only hits ~2.5:1 contrast on white, well under the
-     4.5:1 WCAG AA minimum for text. Gray 500 keeps it visibly lighter than
-     --text-secondary while staying readable (~4.6:1). */
-  --text-tertiary: #6B7280; /* Gray 500 */
-  
-  --border-color: #E5E7EB; /* Gray 200 */
-  
-  /* The 500-shades read great on a dark background (~6-7:1, see the dark
-     theme override below) but badly on white: success ~2.5:1, warning
-     ~2.1:1, danger ~3.8:1, info ~3.7:1 — all under the 4.5:1 AA minimum for
-     text. Darker shades of the same hues for light mode; dark mode keeps
-     the originals since those already work. */
-  --success: #059669; /* Green 600 — ~3.8:1 */
-  --warning: #B45309; /* Amber 700 — ~5.2:1 */
-  --danger: #DC2626; /* Red 600 — ~4.8:1 */
-  --info: #2563EB; /* Blue 600 — ~5.2:1 */
-  
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  /* A *white* translucent border only reads against a dark backdrop — on a
-     near-white card over a near-white page it was effectively invisible,
-     leaving every card looking edgeless. Dark-tinted instead, so cards
-     actually show a visible boundary in light mode. */
-  --glass-border: rgba(17, 24, 39, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-  
+  /* Colors — moss (brand/primary), paper (surface), brass (caution),
+     brick (danger), denim (info). Named for what they resemble, not what
+     they're used for, since one hue often serves several roles. */
+  --primary-color: #2F6844; /* moss */
+  --primary-dark: #234C33; /* moss, deeper */
+  --primary-light: #9DBFA4; /* sage — tints only, not text */
+
+  --secondary-color: #3A6EA5; /* denim */
+
+  --background: #F3F1E6; /* field-report paper */
+  --surface: #FCFBF5;
+  --surface-hover: #EAE7D9;
+
+  --text-primary: #1B2420; /* ink */
+  --text-secondary: #4A5048;
+  /* Verified ~4.7:1 against --surface/--background — stays AA-safe while
+     visibly lighter than --text-secondary. */
+  --text-tertiary: #6E756B;
+
+  --border-color: #DCD8C7; /* hairline rule */
+
+  /* Darkened for ~4.5:1+ AA text contrast on light paper; dark mode below
+     uses brighter siblings of the same hues once the backdrop is dark. */
+  --success: #3D7A54; /* friendlier green, distinct from brand moss */
+  --warning: #8C6A1F; /* brass */
+  --danger: #B23A2B; /* brick */
+  --info: #3A6EA5; /* denim */
+
+  /* Card surface treatment — a solid paper card with a hairline edge,
+     not translucent glass (see .glass-card below). These variables still
+     back the sticky nav/dropdown, which keep a light translucency. */
+  --glass-bg: rgba(252, 251, 245, 0.75);
+  --glass-border: rgba(27, 36, 32, 0.1);
+  --glass-shadow: 0 8px 28px 0 rgba(27, 36, 32, 0.08);
+
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  
-  /* Typography */
+  --shadow-sm: 0 1px 2px 0 rgba(27, 36, 32, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(27, 36, 32, 0.08), 0 2px 4px -1px rgba(27, 36, 32, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(27, 36, 32, 0.1), 0 4px 6px -2px rgba(27, 36, 32, 0.05);
+
+  /* Typography — Space Grotesk carries headings and labels, Inter carries
+     body/UI text, JetBrains Mono carries every measured figure. */
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --border-radius: 12px;
-  --border-radius-sm: 8px;
-  --border-radius-md: 10px;
-  --border-radius-lg: 16px;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+
+  --border-radius: 10px;
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 14px;
   --border-radius-full: 9999px;
-  
+
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -62,25 +73,32 @@
    (frontend/src/contexts/ThemeContext.tsx). Defaults to the OS preference on
    first visit, then remembers the user's explicit choice in localStorage. */
 [data-theme="dark"] {
-  --background: #111827; /* Gray 900 */
-  --surface: #1F2937; /* Gray 800 */
-  --surface-hover: #374151; /* Gray 700 */
+  --background: #131C16; /* forest ink, not neutral black */
+  --surface: #1C2B22;
+  --surface-hover: #24352A;
 
-  --text-primary: #F9FAFB; /* Gray 50 */
-  --text-secondary: #D1D5DB; /* Gray 300 */
-  --text-tertiary: #6B7280; /* Gray 500 */
+  --text-primary: #EDEAE0; /* warm paper, inverted */
+  --text-secondary: #C3CBC3;
+  --text-tertiary: #8A9189;
 
-  --border-color: #374151; /* Gray 700 */
+  --border-color: #33453A;
 
-  /* The bright 500-shades read great against this dark surface (~6-7:1) —
-     keep them here instead of inheriting the light theme's darkened set. */
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #3B82F6;
+  /* Brighter siblings of the light-mode hues — read at ~6-7:1 against this
+     dark ink-green surface, same relationship as before just re-hued.
+     --primary-dark specifically: it's used as *text* (link/tab hover
+     color), not just a button-hover background, so it needs the same
+     brightening every other status color gets here — the light-mode
+     value (#234C33) is nearly invisible on a dark card. */
+  --primary-dark: #4C8F66;
+  --success: #5FA97C;
+  --warning: #D1A94A;
+  --danger: #D9695A;
+  --info: #6C9BC7;
+  --primary-light: #4E6D58;
 
-  --glass-bg: rgba(31, 41, 55, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(28, 43, 34, 0.75);
+  --glass-border: rgba(237, 234, 224, 0.07);
+  --glass-shadow: 0 8px 28px 0 rgba(0, 0, 0, 0.28);
 }
 
 /* Global Reset */
@@ -102,9 +120,19 @@ body {
 
 /* Base Utilities */
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
   color: var(--text-primary);
   font-weight: 600;
   line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* Every measured figure in the app — KPI values, metric boxes, gauge
+   percentages — carries this. Tabular numerals so digits align in a
+   column like an audited ledger, not a decorative flourish. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 a {
@@ -135,16 +163,25 @@ button {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
-/* Glass Card */
+@media (max-width: 768px) {
+  .main-content { padding: 1.25rem; }
+}
+
+@media (max-width: 480px) {
+  .main-content { padding: 1rem; }
+}
+
+/* Card — solid paper, not translucent glass. (--glass-bg/-border/-shadow
+   remain for the few spots that still want a translucent-on-scroll feel,
+   namely the sticky top nav and its dropdown.) */
 .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  box-shadow: var(--glass-shadow);
+  box-shadow: var(--shadow-sm);
   padding: 1.5rem;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
 }
@@ -152,6 +189,10 @@ button {
 .glass-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 480px) {
+  .glass-card { padding: 1.1rem; }
 }
 
 /* Buttons */
@@ -171,13 +212,13 @@ button {
 .btn-primary {
   background-color: var(--primary-color);
   color: white;
-  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+  box-shadow: 0 4px 14px 0 rgba(47, 104, 68, 0.39);
 }
 
 .btn-primary:hover {
   background-color: var(--primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.23);
+  box-shadow: 0 6px 20px rgba(47, 104, 68, 0.23);
 }
 
 .btn-secondary {
@@ -218,7 +259,7 @@ button {
 .input-field:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px rgba(47, 104, 68, 0.12);
 }
 
 /* Status Badges */
@@ -227,17 +268,18 @@ button {
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: var(--border-radius-full);
-  font-size: 0.75rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.badge-success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
-.badge-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
-.badge-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
-.badge-info { background-color: rgba(59, 130, 246, 0.1); color: var(--info); }
-.badge-neutral { background-color: rgba(107, 114, 128, 0.1); color: var(--text-secondary); }
+.badge-success { background-color: rgba(61, 122, 84, 0.14); color: var(--success); }
+.badge-warning { background-color: rgba(140, 106, 31, 0.14); color: var(--warning); }
+.badge-danger { background-color: rgba(178, 58, 43, 0.14); color: var(--danger); }
+.badge-info { background-color: rgba(58, 110, 165, 0.14); color: var(--info); }
+.badge-neutral { background-color: rgba(74, 80, 72, 0.12); color: var(--text-secondary); }
 
 /* Tables */
 .table-container {
@@ -258,10 +300,11 @@ button {
   padding: 1rem;
   background-color: var(--surface-hover);
   color: var(--text-secondary);
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -277,7 +320,7 @@ button {
 }
 
 .data-table tr:hover td {
-  background-color: rgba(16, 185, 129, 0.02);
+  background-color: rgba(47, 104, 68, 0.03);
 }
 
 /* Utility overrides */

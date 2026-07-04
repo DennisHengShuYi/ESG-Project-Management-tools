@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getAdminUsers, createAdminUser, updateAdminUser,
-  getAuditLog, getOrgSettings, saveOrgSettings,
+  getAuditLog,
 } from '../utils/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, ClipboardList, Settings as SettingsIcon, Plus, X, Save, ShieldCheck, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, ClipboardList, Plus, X, Save, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import './Admin.css';
 
 /* ── Module catalog — mirrors backend/src/utils/fieldRedaction.js ──── */
@@ -457,119 +457,11 @@ const ActivityLogTab = ({ users }: { users: any[] }) => {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   ORG SETTINGS TAB — retired Settings.tsx content, admin-only
-═══════════════════════════════════════════════════════════════════ */
-const OrgSettingsTab = () => {
-  const [settings, setSettings] = useState<any>(null);
-
-  useEffect(() => { getOrgSettings().then(setSettings); }, []);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (name.startsWith('framework_')) {
-      const fw = name.replace('framework_', '');
-      setSettings(prev => ({ ...prev, frameworks: { ...prev.frameworks, [fw]: checked } }));
-      return;
-    }
-    const val = type === 'number' ? parseFloat(value) || 0 : value;
-    setSettings(prev => ({ ...prev, [name]: val }));
-  };
-
-  const handleSave = async () => {
-    await saveOrgSettings(settings);
-    alert('Org settings saved successfully.');
-  };
-
-  if (!settings) return <div className="loading">Loading…</div>;
-
-  return (
-    <div className="settings-grid">
-      <div className="glass-card settings-section">
-        <div className="section-header">
-          <SettingsIcon size={20} className="text-primary" />
-          <h3>System Configuration</h3>
-        </div>
-        <div className="form-group">
-          <label>Internal Carbon Price (RM/tCO2e)</label>
-          <input type="number" name="internal_carbon_price" value={settings.internal_carbon_price || 0} onChange={handleInputChange} className="input-field" />
-          <span className="help-text">Used to calculate shadow carbon costs.</span>
-        </div>
-        <div className="form-group">
-          <label>Grid Emission Factor (kgCO2e/kWh)</label>
-          <input type="number" name="grid_emission_factor" step="0.001" value={settings.grid_emission_factor || 0} onChange={handleInputChange} className="input-field" />
-          <span className="help-text">Peninsular Malaysia (TNB) default is 0.694.</span>
-        </div>
-        <div className="form-group">
-          <label>Reporting Financial Year End</label>
-          <input type="text" name="reporting_fye" value={settings.reporting_fye || ''} onChange={handleInputChange} className="input-field" />
-        </div>
-      </div>
-
-      <div className="glass-card settings-section">
-        <div className="section-header">
-          <SettingsIcon size={20} className="text-warning" />
-          <h3>Alert Thresholds</h3>
-        </div>
-        <div className="form-group">
-          <label>LTIR Threshold</label>
-          <input type="number" name="ltir_threshold" step="0.1" value={settings.ltir_threshold || 0} onChange={handleInputChange} className="input-field" />
-          <span className="help-text">Trigger dashboard alert if exceeded.</span>
-        </div>
-        <div className="form-group">
-          <label>High Risk Score Threshold</label>
-          <input type="number" name="high_risk_threshold" value={settings.high_risk_threshold || 0} onChange={handleInputChange} className="input-field" />
-          <span className="help-text">Risks scoring above this (Likelihood x Impact) are flagged.</span>
-        </div>
-      </div>
-
-      <div className="glass-card settings-section">
-        <div className="section-header">
-          <SettingsIcon size={20} className="text-info" />
-          <h3>Framework Toggles</h3>
-        </div>
-        <div className="toggle-list">
-          <div className="toggle-item">
-            <div>
-              <span className="font-medium block">Bursa Malaysia PN9-A</span>
-              <span className="text-sm text-secondary">Mandatory for all Malaysian PLCs</span>
-            </div>
-            <input type="checkbox" checked={true} disabled className="toggle-switch" />
-          </div>
-          <div className="toggle-item">
-            <div><span className="font-medium block">IFRS S1 General Requirements</span></div>
-            <input type="checkbox" name="framework_ifrs1" checked={!!settings.frameworks?.ifrs1} onChange={handleInputChange} className="toggle-switch" />
-          </div>
-          <div className="toggle-item">
-            <div><span className="font-medium block">IFRS S2 Climate Disclosures</span></div>
-            <input type="checkbox" name="framework_ifrs2" checked={!!settings.frameworks?.ifrs2} onChange={handleInputChange} className="toggle-switch" />
-          </div>
-          <div className="toggle-item">
-            <div><span className="font-medium block">GRI Standards Mapping</span></div>
-            <input type="checkbox" name="framework_gri" checked={!!settings.frameworks?.gri} onChange={handleInputChange} className="toggle-switch" />
-          </div>
-          <div className="toggle-item">
-            <div><span className="font-medium block">UN SDG Alignment</span></div>
-            <input type="checkbox" name="framework_sdg" checked={!!settings.frameworks?.sdg} onChange={handleInputChange} className="toggle-switch" />
-          </div>
-        </div>
-      </div>
-
-      <div className="org-settings-save">
-        <button className="btn btn-primary" onClick={handleSave}>
-          <Save size={18} /> Save Org Settings
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
 const TABS = [
   { id: 'team',     label: 'Team',          icon: Users },
   { id: 'activity', label: 'Activity Log',  icon: ClipboardList },
-  { id: 'settings', label: 'Org Settings',  icon: SettingsIcon },
 ];
 
 const Admin = () => {
@@ -583,7 +475,7 @@ const Admin = () => {
       <div className="page-header">
         <div>
           <h2>Admin</h2>
-          <p className="text-secondary">Manage teammate access, review the activity log, and configure org-wide settings.</p>
+          <p className="text-secondary">Manage teammate access and review the activity log.</p>
         </div>
       </div>
 
@@ -601,7 +493,6 @@ const Admin = () => {
 
       {activeTab === 'team' && <TeamTab />}
       {activeTab === 'activity' && <ActivityLogTab users={users} />}
-      {activeTab === 'settings' && <OrgSettingsTab />}
     </div>
   );
 };

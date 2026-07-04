@@ -5,14 +5,18 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
   background-color: var(--background);
   position: relative;
   overflow: hidden;
-  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family);
   color: var(--text-primary);
 }
 
-/* Background ambient glow blobs */
+/* Background ambient glow — three tints from the palette (moss, brass,
+   denim) rather than three shades of the same green, so it reads as a
+   deliberate palette rather than a single glowing brand color. */
 .auth-background-blobs {
   position: absolute;
   top: 0;
@@ -35,7 +39,7 @@
   height: 450px;
   top: -10%;
   left: -10%;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(47, 104, 68, 0.16) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 .blob-2 {
@@ -43,7 +47,7 @@
   height: 500px;
   bottom: -15%;
   right: -10%;
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.14) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(140, 106, 31, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 .blob-3 {
@@ -52,7 +56,7 @@
   top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(58, 110, 165, 0.09) 0%, rgba(0, 0, 0, 0) 70%);
 }
 
 /* Theme toggle */
@@ -80,16 +84,17 @@
   color: var(--text-primary);
 }
 
-/* Auth Card Glassmorphism */
+/* Auth card — solid paper, matching the rest of the app's card language
+   (see .glass-card in index.css) rather than a bespoke glass treatment.
+   The top edge carries a thin moss rule, like a stamped ledger cover. */
 .auth-card {
   position: relative;
   z-index: 1;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 20px;
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
   padding: 44px 40px;
   width: 100%;
   max-width: 450px;
@@ -119,7 +124,7 @@
   height: 64px;
   width: auto;
   margin-bottom: 14px;
-  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.3));
+  filter: drop-shadow(0 0 12px rgba(47, 104, 68, 0.3));
   transition: transform 0.3s ease;
 }
 
@@ -128,6 +133,7 @@
 }
 
 .auth-title {
+  font-family: var(--font-display);
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.5px;
@@ -143,6 +149,36 @@
   margin: 6px 0 0 0;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* A compact "certified for" line — the frameworks this tool reports
+   against, set like a stamp on a compliance document. Real information
+   (what the tool is for), not decoration, and the one place the mono
+   face appears outside a measured number. */
+.auth-credentials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-color);
+  width: 100%;
+}
+
+.auth-credential-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.auth-credential-tag:not(:last-child)::after {
+  content: '·';
+  margin-left: 0.6rem;
+  color: var(--border-color);
 }
 
 /* Tabs switcher */
@@ -161,6 +197,7 @@
   border: none;
   color: var(--text-secondary);
   padding: 10px 0;
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
   border-radius: 8px;
@@ -169,9 +206,9 @@
 }
 
 .auth-tab.active {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(47, 104, 68, 0.15);
   color: var(--primary-dark);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(47, 104, 68, 0.2);
 }
 
 .auth-tab:hover:not(.active) {
@@ -189,6 +226,7 @@
 
 .form-group label {
   display: block;
+  font-family: var(--font-display);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -210,9 +248,9 @@
 }
 
 .auth-input:focus {
-  border-color: #10b981;
+  border-color: #2f6844;
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 3px rgba(47, 104, 68, 0.15);
   outline: none;
 }
 
@@ -224,7 +262,7 @@
 .auth-select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A9189' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
@@ -239,16 +277,17 @@
 /* Submit Button */
 .auth-submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #2f6844 0%, #234C33 100%);
   border: none;
   border-radius: 8px;
   color: #ffffff;
   padding: 13px 0;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(47, 104, 68, 0.25);
   margin-top: 10px;
   display: flex;
   justify-content: center;
@@ -257,7 +296,7 @@
 
 .auth-submit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 6px 18px rgba(47, 104, 68, 0.35);
   filter: brightness(1.05);
 }
 
@@ -300,14 +339,14 @@
 }
 
 .auth-alert-error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(178, 58, 43, 0.15);
+  border: 1px solid rgba(178, 58, 43, 0.2);
   color: var(--danger);
 }
 
 .auth-alert-success {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(47, 104, 68, 0.15);
+  border: 1px solid rgba(47, 104, 68, 0.2);
   color: var(--success);
 }
 
@@ -316,6 +355,12 @@
   margin-top: 24px;
   font-size: 13px;
   color: var(--text-tertiary);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .auth-card { padding: 32px 22px; }
+  .auth-theme-toggle { top: 16px; right: 16px; }
 }
 
 .auth-link {

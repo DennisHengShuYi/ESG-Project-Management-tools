@@ -43,11 +43,26 @@ export async function startEdit(page: Page) {
 }
 
 export async function saveEdit(page: Page) {
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
   // EditableModule's handleSave fires onSave(draft) then immediately flips
   // back to view mode — it does NOT await the parent's async save+refetch.
-  // Reading a value right after click() can race ahead of that refetch, so
-  // wait for in-flight requests (the save POST + the GET refetch) to settle.
+  // `waitForLoadState('networkidle')` alone is not reliable here: Playwright
+  // only tracks requests already in flight (or a completed navigation) at
+  // the moment it's called, so if there's any render/microtask gap between
+  // the click and the save's fetch() actually being dispatched, networkidle
+  // can resolve *before* that fetch even starts — the assertion then reads
+  // the API immediately after, racing ahead of the save landing server-side.
+  // Registering the response wait before the click closes that gap.
+  const savePromise = page.waitForResponse(res => {
+    if (res.request().method() !== 'POST') return false;
+    const pathname = new URL(res.url()).pathname;
+    // EventDetail's per-module routes (/api/events/:id/<module>) or
+    // Dashboard's Climate Finance/HR Diversity edits (/api/governance).
+    return /\/api\/events\/[^/]+\/[a-z-]+$/i.test(pathname) || pathname === '/api/governance';
+  });
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await savePromise;
+  // The save is followed by the module's own refetch (a GET) — wait for
+  // that to settle too so a subsequent read sees fully up-to-date data.
   await page.waitForLoadState('networkidle');
 }
 

@@ -1,12 +1,16 @@
-/* ── Shared chart color tokens & helpers ──────────────────────────── */
+/* ── Shared chart color tokens & helpers ──────────────────────────────
+   Muted siblings of the app's "Field Ledger" palette (see index.css) —
+   distinguishable from each other in a bar/donut series while cohering
+   with the warm, paper-and-moss identity rather than clashing bright
+   SaaS defaults against it. */
 export const CHART_COLORS = {
-  green:  '#10B981',
-  blue:   '#3B82F6',
-  amber:  '#F59E0B',
-  red:    '#EF4444',
-  purple: '#8B5CF6',
-  pink:   '#EC4899',
-  teal:   '#14B8A6',
+  green:  '#3D7A54', // success green
+  blue:   '#3A6EA5', // denim
+  amber:  '#B8923F', // brass, lifted slightly for chart legibility
+  red:    '#B23A2B', // brick
+  purple: '#7A5C8F', // muted plum
+  pink:   '#B25C7A', // muted rose
+  teal:   '#3D7A6E', // muted teal
 };
 
 export const TOOLTIP_STYLE = {

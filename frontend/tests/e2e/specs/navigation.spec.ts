@@ -2,12 +2,6 @@ import { test, expect } from '@playwright/test';
 import { collectConsoleErrors } from '../utils/console-errors';
 import { api } from '../utils/api';
 
-/** Settings' checkbox `checked={settings.frameworks?.ifrs1}` can briefly be
- * `undefined` before the GET resolves, which React logs as a controlled/
- * uncontrolled input warning. Pre-existing, unrelated to navigation — allowlisted
- * so it doesn't mask a real regression on this page. */
-const SETTINGS_IGNORE = [/A component is changing an uncontrolled input/i];
-
 let navEventId: string;
 
 test.beforeAll(async () => {
@@ -28,7 +22,6 @@ const PAGES: { path: string; heading: string; ignore?: RegExp[] }[] = [
   { path: '/governance', heading: 'Corporate Governance' },
   { path: '/reporting', heading: 'Compliance & Reporting' },
   { path: '/sdg', heading: 'UN SDG Impact Dashboard' },
-  { path: '/settings', heading: 'Settings & Admin', ignore: SETTINGS_IGNORE },
 ];
 
 for (const { path, heading, ignore } of PAGES) {

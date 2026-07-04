@@ -15,6 +15,13 @@
 
 .page-header h2 { font-size: 1.5rem; margin-bottom: 0.25rem; }
 
+.no-access-card {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 .header-actions {
   display: flex;
   gap: 0.75rem;
@@ -39,8 +46,8 @@
   border: 1px solid transparent;
 }
 
-.chip-achieved   { background: rgba(16,185,129,0.1);  color: #10B981; border-color: rgba(16,185,129,0.25); }
-.chip-partial    { background: rgba(245,158,11,0.1);  color: #F59E0B; border-color: rgba(245,158,11,0.25); }
+.chip-achieved   { background: rgba(47,104,68,0.1);  color: #2F6844; border-color: rgba(47,104,68,0.25); }
+.chip-partial    { background: rgba(140,106,31,0.1);  color: #8C6A1F; border-color: rgba(140,106,31,0.25); }
 .chip-none       { background: rgba(156,163,175,0.1); color: #6B7280; border-color: rgba(156,163,175,0.25); }
 .chip-total      { background: var(--surface-hover);  color: var(--text-secondary); border-color: var(--border-color); }
 
@@ -50,6 +57,8 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
+
+@media (max-width: 480px) { .sdg-grid { grid-template-columns: 1fr; } }
 
 /* ── SDG Card ───────────────────────────────────────────────────── */
 .sdg-card {
@@ -92,8 +101,8 @@
 
 /* Match the number's color to the card's own achievement status instead of
    always showing the brand green, regardless of whether it's been achieved. */
-.sdg-card-achieved .sdg-num    { color: #10B981; }
-.sdg-card-partial .sdg-num     { color: #F59E0B; }
+.sdg-card-achieved .sdg-num    { color: #2F6844; }
+.sdg-card-partial .sdg-num     { color: #8C6A1F; }
 .sdg-card-not_started .sdg-num { color: var(--text-tertiary); }
 
 .sdg-header-right {
@@ -141,12 +150,12 @@
   letter-spacing: 0.04em;
 }
 
-.status-achieved   { color: #10B981; }
-.status-partial    { color: #F59E0B; }
+.status-achieved   { color: #2F6844; }
+.status-partial    { color: #8C6A1F; }
 .status-not_started { color: var(--text-tertiary); }
 
-.sdg-icon-achieved { color: #10B981; }
-.sdg-icon-partial  { color: #F59E0B; }
+.sdg-icon-achieved { color: #2F6844; }
+.sdg-icon-partial  { color: #8C6A1F; }
 .sdg-icon-none     { color: var(--text-tertiary); }
 
 /* ── Progress bar ───────────────────────────────────────────────── */
@@ -165,6 +174,8 @@
 }
 
 .sdg-pct-label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.7rem;
   color: var(--text-tertiary);
   font-weight: 500;
@@ -431,7 +442,7 @@
   margin-right: auto;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #10B981;
+  color: #2F6844;
   animation: sdg-msg-in 0.2s ease;
 }
 

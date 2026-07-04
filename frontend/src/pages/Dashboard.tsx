@@ -572,7 +572,7 @@ const Dashboard = () => {
       sub: `of ${events.length} total`,
       icon: Calendar,
       color: C.green,
-      bg: 'rgba(16,185,129,0.08)',
+      bg: 'rgba(47,104,68,0.08)',
       trend: trendOf(yearEvents.length, prevEvents.length),
       goodWhenUp: true,
     },
@@ -582,7 +582,7 @@ const Dashboard = () => {
       sub: 'tCO₂e (S1+S2+S3)',
       icon: Flame,
       color: C.red,
-      bg: 'rgba(239,68,68,0.08)',
+      bg: 'rgba(178,58,43,0.08)',
       trend: trendOf(totalEmissions, prevEmissions),
       goodWhenUp: false,
     },
@@ -591,12 +591,12 @@ const Dashboard = () => {
       value: `${agg_.total_energy_mwh.toFixed(1)}`,
       sub: 'MWh consumed',
       icon: Zap,
-      // var(--warning), not C.amber — C.amber (#F59E0B) only hits ~2.1:1
+      // var(--warning), not C.amber — C.amber (#8C6A1F) only hits ~2.1:1
       // contrast as text on a white background. The CSS variable resolves
       // to a darker, legible shade in light mode and the original bright
       // one in dark mode (see index.css).
       color: 'var(--warning)',
-      bg: 'rgba(245,158,11,0.08)',
+      bg: 'rgba(140,106,31,0.08)',
       trend: trendOf(agg_.total_energy_mwh, prevSum('total_energy_mwh')),
       goodWhenUp: false,
     },
@@ -606,7 +606,7 @@ const Dashboard = () => {
       sub: netProfit >= 0 ? 'Profit' : 'Loss',
       icon: DollarSign,
       color: netProfit >= 0 ? C.green : C.red,
-      bg: netProfit >= 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+      bg: netProfit >= 0 ? 'rgba(47,104,68,0.08)' : 'rgba(178,58,43,0.08)',
       trend: trendOf(netProfit, prevNetProfit),
       goodWhenUp: true,
     },

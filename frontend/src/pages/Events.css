@@ -50,7 +50,7 @@
 
 .summary-chip:hover { border-color: var(--primary-color); color: var(--text-primary); }
 .summary-chip.active {
-  background: rgba(16,185,129,0.08);
+  background: rgba(47,104,68,0.08);
   border-color: var(--primary-color);
   color: var(--primary-color);
 }
@@ -90,6 +90,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   padding: 1.25rem 1.5rem;
   gap: 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -98,6 +99,12 @@
 .search-box {
   position: relative;
   width: 280px;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .table-controls { padding: 1rem; }
+  .search-box { width: 100%; }
 }
 
 .search-box svg {
@@ -123,7 +130,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+  box-shadow: 0 0 0 3px rgba(47,104,68,0.1);
 }
 
 .results-count {
@@ -184,10 +191,10 @@
 .data-table tr:last-child td { border-bottom: none; }
 
 .clickable-row { cursor: pointer; }
-.clickable-row:hover td { background: rgba(16,185,129,0.03); }
+.clickable-row:hover td { background: rgba(47,104,68,0.03); }
 
-.row-selected td { background: rgba(16,185,129,0.06); }
-.row-selected:hover td { background: rgba(16,185,129,0.09); }
+.row-selected td { background: rgba(47,104,68,0.06); }
+.row-selected:hover td { background: rgba(47,104,68,0.09); }
 
 .checkbox-col {
   width: 2.5rem;
@@ -233,7 +240,7 @@
 }
 
 .btn-icon:hover { background: var(--surface-hover); color: var(--primary-color); }
-.btn-icon-danger:hover { background: rgba(239,68,68,0.08); color: var(--danger); }
+.btn-icon-danger:hover { background: rgba(178,58,43,0.08); color: var(--danger); }
 
 .empty-row {
   text-align: center;
@@ -273,19 +280,15 @@
   max-width: 420px;
 }
 
-/* Solid surface instead of the translucent glass look, so the popup reads
-   clearly against a light background. Dark mode keeps the glass effect
-   since it already has enough contrast against the dark backdrop. */
+/* Solid surface in both themes — a translucent+blurred modal over a fixed
+   backdrop-filter overlay is fragile (renders solid white in some
+   compositing paths regardless of the theme), and it's inconsistent with
+   the rest of the app's paper-card identity anyway (see .glass-card in
+   index.css, which dropped the glass treatment entirely). */
 .modal-card-solid {
   background: var(--surface);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-[data-theme="dark"] .modal-card-solid {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .modal-header {
@@ -330,7 +333,7 @@
 .modal-error {
   font-size: 0.8125rem;
   color: var(--danger);
-  background: rgba(239,68,68,0.08);
+  background: rgba(178,58,43,0.08);
   padding: 0.5rem 0.75rem;
   border-radius: var(--border-radius-sm);
 }

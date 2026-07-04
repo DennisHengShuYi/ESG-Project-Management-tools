@@ -42,6 +42,17 @@ test('SDG 3 (Good Health): zero fatalities and zero LTIR for the period is marke
   const created = await api.createEvent({ event_name: `[E2E] SDG3 ${Date.now()}`, reporting_year: YEAR, event_status: 'Active' });
   await api.bulkUpdate(created.id, { fatalities_count: '0', lti_count: '0', man_hours_actual: '1000' });
 
+  // tracked_sdgs_by_year is shared per-organisation state (like Settings
+  // elsewhere) — a prior run/session against this same fake year could have
+  // left SDG 3 untracked. Explicitly ensure it's tracked for this year and
+  // restore whatever was there afterwards, rather than assuming a clean slate.
+  const originalSettings = await api.getSettings();
+  const originalForYear = originalSettings.tracked_sdgs_by_year?.[YEAR];
+  await api.saveSettings({
+    ...originalSettings,
+    tracked_sdgs_by_year: { ...(originalSettings.tracked_sdgs_by_year || {}), [YEAR]: [3, 5, 6, 7, 8, 10, 11, 12, 13, 16] },
+  });
+
   await page.goto('/sdg');
   await page.locator('select').first().selectOption(YEAR);
 
@@ -50,4 +61,9 @@ test('SDG 3 (Good Health): zero fatalities and zero LTIR for the period is marke
   await expect(card.getByText('Achieved', { exact: true })).toBeVisible();
 
   await api.deleteEvent(created.id);
+  const latestSettings = await api.getSettings();
+  const restoredByYear = { ...(latestSettings.tracked_sdgs_by_year || {}) };
+  if (originalForYear === undefined) delete restoredByYear[YEAR];
+  else restoredByYear[YEAR] = originalForYear;
+  await api.saveSettings({ ...latestSettings, tracked_sdgs_by_year: restoredByYear });
 });

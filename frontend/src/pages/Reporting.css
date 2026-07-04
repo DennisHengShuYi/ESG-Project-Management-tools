@@ -10,6 +10,8 @@
   gap: 1.5rem;
 }
 
+@media (max-width: 560px) { .reporting-grid { grid-template-columns: 1fr; } }
+
 .report-card {
   display: flex;
   flex-direction: column;

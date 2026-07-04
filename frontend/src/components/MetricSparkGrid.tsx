@@ -14,7 +14,7 @@ interface MetricSparkGridProps {
   accentColor?: string;
 }
 
-const MetricSparkGrid = ({ fields, data = {}, accentColor = '#10B981' }: MetricSparkGridProps) => {
+const MetricSparkGrid = ({ fields, data = {}, accentColor = '#2F6844' }: MetricSparkGridProps) => {
   const displayValue = (field: MetricSparkField) => {
     if (field.compute) return field.compute(data);
     const raw = data[field.key];

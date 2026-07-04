@@ -65,7 +65,7 @@ const SDGDashboard = () => {
   const [settings, setSettings] = useState<any>({});
   const { selectedYear, setSelectedYear, availableYears } =
     useReportingYear(events.map((e: any) => e.reporting_year));
-  const { canRead, canWrite } = useAuth();
+  const { canRead, canWrite, permissionsLoading } = useAuth();
   const canWriteSdg = canWrite('sdg');
   const canReadEvents = canRead('events');
   const canReadCorp = ['governance', 'hr-diversity', 'climate-finance'].some(m => canRead(m));
@@ -590,6 +590,21 @@ const SDGDashboard = () => {
   /* ═══════════════════════════════════════════════════════════════════
      RENDER
   ═══════════════════════════════════════════════════════════════════ */
+  if (permissionsLoading) return <div className="loading">Loading…</div>;
+
+  if (!canReadSdg) {
+    return (
+      <div className="sdg-container animate-fade-in">
+        <div className="page-header">
+          <div><h2>UN SDG Impact Dashboard</h2></div>
+        </div>
+        <div className="glass-card no-access-card">
+          You don't have access to the SDG dashboard. Ask an admin to grant you read access.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sdg-container animate-fade-in">
 

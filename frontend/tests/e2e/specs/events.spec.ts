@@ -40,7 +40,7 @@ test('FIXED: creating an event with no Start/End Date no longer crashes the back
   await page.getByRole('button', { name: 'New Event' }).click();
   await modalField(page, 'Event Name').fill(name);
   await page.getByRole('button', { name: 'Create Event' }).click();
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
 
   const serverEvents = await api.getEvents();
   const match = serverEvents.find((e: any) => e.event_name === name);
@@ -61,7 +61,7 @@ test('creating an event persists it in the backend, not just in the UI', async (
   await page.getByRole('button', { name: 'Create Event' }).click();
 
   // UI reflects it immediately
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
 
   // Confirm via a direct, independent API call (not the same optimistic state)
   const serverEvents = await api.getEvents();
@@ -98,7 +98,7 @@ test('a far-future Start Date still auto-fills the matching Reporting Year (no h
 
   // Wait for the modal's save to actually land before checking via API —
   // otherwise this can race ahead of the in-flight POST ("Saving..." state).
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
 
   const serverEvents = await api.getEvents();
   const match = serverEvents.find((e: any) => e.event_name === name);
@@ -125,7 +125,7 @@ test('editing an event persists the change after reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Save Changes' }).click();
 
   await page.reload();
-  await expect(page.getByRole('cell', { name: updated })).toBeVisible();
+  await expect(page.getByRole('cell', { name: updated, exact: true })).toBeVisible();
   const detail = await api.getEventDetail(created.id);
   expect(detail.event_name).toBe(updated);
   expect(detail.event_status).toBe('Active');
@@ -140,13 +140,13 @@ test('deleting an event: cancel keeps it, confirm removes it server-side (soft d
   await row.getByTitle('Delete').click();
   await expect(page.getByText(/cannot be undone/)).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
 
   await row.getByTitle('Delete').click();
   // Scoped to the modal: every table row also has its own icon button whose
   // accessible name is "Delete" (via title=), so an unscoped lookup is ambiguous.
   await page.locator('.modal-footer').getByRole('button', { name: 'Delete', exact: true }).click();
-  await expect(page.getByRole('cell', { name })).not.toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).not.toBeVisible();
 
   const serverEvents = await api.getEvents();
   expect(serverEvents.find((e: any) => e.id === created.id)).toBeUndefined();
@@ -160,7 +160,7 @@ test('search box filters the table by name and client', async ({ page }) => {
   await page.reload();
 
   await page.getByPlaceholder('Search events or clients…').fill('UniqueClientXYZ');
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
   const rows = page.locator('tbody tr');
   await expect(rows).toHaveCount(1);
 
@@ -178,7 +178,7 @@ test('status filter chips show correct counts and filter the table', async ({ pa
   await expect(page.locator('.summary-chip', { hasText: 'All' })).toContainText(String(allCount));
 
   await page.locator('.summary-chip', { hasText: 'Completed' }).click();
-  await expect(page.getByRole('cell', { name })).toBeVisible();
+  await expect(page.getByRole('cell', { name, exact: true })).toBeVisible();
   const rows = page.locator('tbody tr');
   const count = await rows.count();
   for (let i = 0; i < count; i++) {

@@ -114,12 +114,12 @@ const ATTENDANCE_FIELDS = [
 
 /* ── Module tab config ─────────────────────────────────────────────── */
 const MODULE_TABS = [
-  { id: 'green-ops',     label: 'Green Ops',               icon: Cloud,          fields: GREEN_OPS_FIELDS,    colorClass: 'text-primary', accentColor: '#10B981' },
-  { id: 'health-safety', label: 'Health, Safety & Labour', icon: ShieldAlert,    fields: HEALTH_FIELDS,       colorClass: 'text-danger',  accentColor: '#EF4444' },
-  { id: 'procurement',   label: 'Procurement & Community', icon: HeartHandshake, fields: PROCUREMENT_FIELDS,  colorClass: 'text-info',    accentColor: '#14B8A6' },
-  { id: 'financial',     label: 'Financial',               icon: DollarSign,     fields: FINANCIAL_FIELDS,    colorClass: 'text-success', accentColor: '#10B981' },
-  { id: 'timeline',      label: 'Timeline & Team',         icon: Clock,          fields: TIMELINE_FIELDS,     colorClass: 'text-warning', accentColor: '#F59E0B' },
-  { id: 'attendance',    label: 'Attendance',              icon: Users,          fields: ATTENDANCE_FIELDS,   colorClass: 'text-primary', accentColor: '#3B82F6' },
+  { id: 'green-ops',     label: 'Green Ops',               icon: Cloud,          fields: GREEN_OPS_FIELDS,    colorClass: 'text-primary', accentColor: '#2F6844' },
+  { id: 'health-safety', label: 'Health, Safety & Labour', icon: ShieldAlert,    fields: HEALTH_FIELDS,       colorClass: 'text-danger',  accentColor: '#B23A2B' },
+  { id: 'procurement',   label: 'Procurement & Community', icon: HeartHandshake, fields: PROCUREMENT_FIELDS,  colorClass: 'text-info',    accentColor: '#3D7A6E' },
+  { id: 'financial',     label: 'Financial',               icon: DollarSign,     fields: FINANCIAL_FIELDS,    colorClass: 'text-success', accentColor: '#2F6844' },
+  { id: 'timeline',      label: 'Timeline & Team',         icon: Clock,          fields: TIMELINE_FIELDS,     colorClass: 'text-warning', accentColor: '#8C6A1F' },
+  { id: 'attendance',    label: 'Attendance',              icon: Users,          fields: ATTENDANCE_FIELDS,   colorClass: 'text-primary', accentColor: '#3A6EA5' },
 ];
 
 /* ── Module → save function map ────────────────────────────────────── */

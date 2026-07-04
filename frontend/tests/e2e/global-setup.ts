@@ -2,6 +2,7 @@ import { chromium } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { FRONTEND_URL, BACKEND_URL, AUTH_STATE_PATH, TEST_USER_PATH } from '../../playwright.config';
+import { grantFullPermissions, purgeStaleE2EUsers } from './utils/supabase-admin';
 
 /**
  * Registers a throwaway test account against the real backend/Supabase
@@ -10,6 +11,10 @@ import { FRONTEND_URL, BACKEND_URL, AUTH_STATE_PATH, TEST_USER_PATH } from '../.
  * individual specs can also hit the API directly for persistence checks.
  */
 export default async function globalSetup() {
+  // Self-heal: sweep any orphaned accounts from runs that never reached
+  // global-teardown before creating a new one (see supabase-admin.ts).
+  await purgeStaleE2EUsers();
+
   const orgsRes = await fetch(`${BACKEND_URL}/api/auth/organisations`).catch(() => null);
   if (!orgsRes || !orgsRes.ok) {
     throw new Error(
@@ -36,6 +41,11 @@ export default async function globalSetup() {
   }
 
   const { token, user } = regData;
+
+  // RBAC defaults fresh members to zero module permissions — grant full
+  // access directly so this account can exercise every existing spec the
+  // way a fully-privileged user could before RBAC existed.
+  await grantFullPermissions(user.id);
 
   const authDir = path.dirname(AUTH_STATE_PATH);
   fs.mkdirSync(authDir, { recursive: true });

@@ -89,16 +89,15 @@ test('Sustainability Committee Name persists', async ({ page }) => {
   expect(gov.gov_committee_name).toBe(value);
 });
 
-test('Board Oversight Description is persisted wrapped in <p> tags (existing behavior)', async ({ page }) => {
+test('Board Oversight Description persists as plain text', async ({ page }) => {
   const value = `E2E oversight text ${Date.now()}`;
   const textarea = page.locator('textarea').nth(0); // Board Oversight Description is the first textarea
   await textarea.fill(value);
   await saveAndAcceptAlert(page);
 
   const gov = await api.getGovernance('2025');
-  expect(gov.gov_board_oversight_text).toBe(`<p>${value}</p>`);
+  expect(gov.gov_board_oversight_text).toBe(value);
 
-  // The page strips tags back out for display, so the textarea should show plain text on reload.
   // A full reload remounts the page, which resets selectedYear back to
   // whatever the year-default heuristic picks — re-pin to 2025.
   await page.reload();

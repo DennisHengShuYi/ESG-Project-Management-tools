@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logo from '../assets/GG Logo Transparent.png';
@@ -10,6 +10,7 @@ const Layout = () => {
   const { user, signOut, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
@@ -41,6 +42,14 @@ const Layout = () => {
   return (
     <div className="app-container">
       <header className="top-nav">
+        <button
+          type="button"
+          className="mobile-menu-btn"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={20} />
+        </button>
         <div className="nav-brand">
           <img src={logo} alt="Green Generation Logo" className="brand-logo-img" />
           <div className="brand-text">
@@ -116,6 +125,41 @@ const Layout = () => {
           )}
         </div>
       </header>
+
+      {/* Mobile slide-out drawer menu */}
+      {menuOpen && (
+        <div className="mobile-drawer-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-header">
+              <div className="drawer-brand">
+                <img src={logo} alt="Green Generation Logo" className="brand-logo-img" />
+                <span className="drawer-subtitle">ESG Project Tool</span>
+              </div>
+              <button
+                type="button"
+                className="close-drawer-btn"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close navigation menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="drawer-nav">
+              {tabs.map((tab) => (
+                <NavLink
+                  key={tab.path}
+                  to={tab.path}
+                  className={({ isActive }) => `drawer-tab ${isActive ? 'active' : ''}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span>{tab.name}</span>
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+
       <main className="main-content">
         <Outlet />
       </main>

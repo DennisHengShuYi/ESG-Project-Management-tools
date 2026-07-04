@@ -488,29 +488,4 @@ export const getAuditLog = async (filters: { module?: string; user_id?: string; 
   }
 };
 
-export const getOrgSettings = async () => {
-  try {
-    const headers = await getHeaders(true);
-    const res = await apiFetch(`${API_URL}/api/admin/org-settings`, { method: 'GET', headers });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    console.error('getOrgSettings error:', error);
-    return {};
-  }
-};
-
-export const saveOrgSettings = async (settingsData: any) => {
-  try {
-    const headers = await getHeaders();
-    const res = await apiFetch(`${API_URL}/api/admin/org-settings`, {
-      method: 'POST', headers, body: JSON.stringify(settingsData),
-    });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    console.error('saveOrgSettings error:', error);
-    return { success: false };
-  }
-};
 

@@ -125,6 +125,12 @@ const Auth = () => {
           <img src={logo} alt="Green Generation Logo" className="auth-logo" />
           <h1 className="auth-title">Green Generation</h1>
           <p className="auth-subtitle">ESG Project Management Portal</p>
+          <div className="auth-credentials">
+            <span className="auth-credential-tag">BURSA PN9-A</span>
+            <span className="auth-credential-tag">IFRS S1 / S2</span>
+            <span className="auth-credential-tag">GRI</span>
+            <span className="auth-credential-tag">UN SDG</span>
+          </div>
         </div>
 
         <div className="auth-tabs">

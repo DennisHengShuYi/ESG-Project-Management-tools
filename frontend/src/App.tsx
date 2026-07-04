@@ -29,9 +29,9 @@ function AppContent() {
         <div style={{
           width: '36px',
           height: '36px',
-          border: '3px solid rgba(16, 185, 129, 0.2)',
+          border: '3px solid rgba(47, 104, 68, 0.2)',
           borderRadius: '50%',
-          borderTopColor: '#10b981',
+          borderTopColor: '#2f6844',
           animation: 'spin 0.8s linear infinite'
         }}></div>
         <style>{`

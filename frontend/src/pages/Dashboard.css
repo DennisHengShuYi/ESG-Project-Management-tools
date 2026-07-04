@@ -99,19 +99,19 @@
    charts elsewhere on this page (see CHART_COLORS in components/charts) —
    gives a quick visual "which module am I in" cue instead of one uniform
    green for every tab. */
-.module-tab-green-ops:hover       { border-color: #10B981 !important; }
-.module-tab-health-safety:hover   { border-color: #EF4444 !important; }
-.module-tab-procurement:hover     { border-color: #14B8A6 !important; }
-.module-tab-financial:hover       { border-color: #F59E0B !important; }
-.module-tab-climate-finance:hover { border-color: #8B5CF6 !important; }
-.module-tab-hr-diversity:hover    { border-color: #3B82F6 !important; }
+.module-tab-green-ops:hover       { border-color: #2F6844 !important; }
+.module-tab-health-safety:hover   { border-color: #B23A2B !important; }
+.module-tab-procurement:hover     { border-color: #3D7A6E !important; }
+.module-tab-financial:hover       { border-color: #8C6A1F !important; }
+.module-tab-climate-finance:hover { border-color: #7A5C8F !important; }
+.module-tab-hr-diversity:hover    { border-color: #3A6EA5 !important; }
 
-.module-tab-green-ops.active       { background: #10B981 !important; border-color: #10B981 !important; }
-.module-tab-health-safety.active   { background: #EF4444 !important; border-color: #EF4444 !important; }
-.module-tab-procurement.active     { background: #14B8A6 !important; border-color: #14B8A6 !important; }
-.module-tab-financial.active       { background: #F59E0B !important; border-color: #F59E0B !important; }
-.module-tab-climate-finance.active { background: #8B5CF6 !important; border-color: #8B5CF6 !important; }
-.module-tab-hr-diversity.active    { background: #3B82F6 !important; border-color: #3B82F6 !important; }
+.module-tab-green-ops.active       { background: #2F6844 !important; border-color: #2F6844 !important; }
+.module-tab-health-safety.active   { background: #B23A2B !important; border-color: #B23A2B !important; }
+.module-tab-procurement.active     { background: #3D7A6E !important; border-color: #3D7A6E !important; }
+.module-tab-financial.active       { background: #8C6A1F !important; border-color: #8C6A1F !important; }
+.module-tab-climate-finance.active { background: #7A5C8F !important; border-color: #7A5C8F !important; }
+.module-tab-hr-diversity.active    { background: #3A6EA5 !important; border-color: #3A6EA5 !important; }
 
 /* ── Tab content area ───────────────────────────────────────────── */
 .tab-content-area {
@@ -131,6 +131,8 @@
   gap: 1rem;
 }
 
+@media (max-width: 480px) { .metrics-grid { grid-template-columns: 1fr; } }
+
 .metric-box {
   display: flex;
   flex-direction: column;
@@ -145,6 +147,7 @@
 }
 
 .metric-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   color: var(--text-secondary);
   font-weight: 600;
@@ -153,6 +156,8 @@
 }
 
 .metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-primary);
