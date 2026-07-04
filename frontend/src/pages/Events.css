@@ -124,6 +124,25 @@
   white-space: nowrap;
 }
 
+/* ── Bulk actions bar ───────────────────────────────────────────── */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bulk-count {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
 /* ── Table ──────────────────────────────────────────────────────── */
 .table-container {
   width: 100%;
@@ -159,6 +178,22 @@
 
 .clickable-row { cursor: pointer; }
 .clickable-row:hover td { background: rgba(16,185,129,0.03); }
+
+.row-selected td { background: rgba(16,185,129,0.06); }
+.row-selected:hover td { background: rgba(16,185,129,0.09); }
+
+.checkbox-col {
+  width: 2.5rem;
+  padding-left: 1.25rem !important;
+  padding-right: 0 !important;
+}
+
+.checkbox-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
 
 .font-medium   { font-weight: 500; }
 .text-secondary { color: var(--text-secondary); }
@@ -221,10 +256,29 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--glass-shadow);
+  padding: 1.5rem;
 }
 
 .modal-card-sm {
   max-width: 420px;
+}
+
+/* Solid surface instead of the translucent glass look, so the popup reads
+   clearly against a light background. Dark mode keeps the glass effect
+   since it already has enough contrast against the dark backdrop. */
+.modal-card-solid {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-theme="dark"] .modal-card-solid {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .modal-header {
@@ -247,12 +301,22 @@
 .modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  align-items: stretch;
   gap: 0.875rem;
 }
 
 @media (max-width: 500px) { .modal-grid { grid-template-columns: 1fr; } }
 
-.modal-grid .input-group:first-child {
+.modal-grid .input-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Event Name and Status stand alone, so they span both columns; the
+   remaining fields pair up (Client/Location, Start/End) two-per-row. */
+.modal-grid .input-group:first-child,
+.modal-grid .input-group:last-child {
   grid-column: 1 / -1;
 }
 

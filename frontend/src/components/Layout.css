@@ -103,7 +103,6 @@
 .nav-tab.active {
   color: var(--primary-color);
   font-weight: 600;
-  border-bottom-color: var(--primary-color);
 }
 
 .nav-tab.active::after {

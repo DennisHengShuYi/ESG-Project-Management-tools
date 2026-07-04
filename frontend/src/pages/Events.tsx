@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { getEvents, saveEvent, deleteEvent } from '../utils/db';
 import { Plus, Search, Calendar, MapPin, Pencil, Trash2, X, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -46,9 +47,9 @@ const EventModal = ({ mode, initial, onClose, onSaved }) => {
     else setError('Failed to save. Please try again.');
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card glass-card animate-fade-in">
+      <div className="modal-card modal-card-solid animate-fade-in">
         {/* Header */}
         <div className="modal-header">
           <h3>{mode === 'create' ? 'New Event / Project' : 'Edit Event'}</h3>
@@ -90,16 +91,6 @@ const EventModal = ({ mode, initial, onClose, onSaved }) => {
               />
             </div>
             <div className="input-group">
-              <label className="input-label">Status</label>
-              <select
-                className="input-field"
-                value={form.event_status}
-                onChange={e => set('event_status', e.target.value)}
-              >
-                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="input-group">
               <label className="input-label">Start Date</label>
               <input
                 className="input-field"
@@ -124,6 +115,16 @@ const EventModal = ({ mode, initial, onClose, onSaved }) => {
                 onChange={e => set('event_end_date', e.target.value)}
               />
             </div>
+            <div className="input-group">
+              <label className="input-label">Status</label>
+              <select
+                className="input-field"
+                value={form.event_status}
+                onChange={e => set('event_status', e.target.value)}
+              >
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
           </div>
 
           {error && <p className="modal-error">{error}</p>}
@@ -137,7 +138,8 @@ const EventModal = ({ mode, initial, onClose, onSaved }) => {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -154,9 +156,9 @@ const DeleteModal = ({ event, onClose, onDeleted }) => {
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card modal-card-sm glass-card animate-fade-in">
+      <div className="modal-card modal-card-sm modal-card-solid animate-fade-in">
         <div className="modal-header">
           <h3>Delete Event</h3>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
@@ -173,7 +175,45 @@ const DeleteModal = ({ event, onClose, onDeleted }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   BULK DELETE CONFIRM MODAL
+═══════════════════════════════════════════════════════════════════ */
+const BulkDeleteModal = ({ events, onClose, onDeleted }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await Promise.all(events.map(e => deleteEvent(e.id)));
+    onDeleted(events.map(e => e.id));
+    onClose();
+  };
+
+  return createPortal(
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card modal-card-sm modal-card-solid animate-fade-in">
+        <div className="modal-header">
+          <h3>Delete {events.length} Event{events.length !== 1 ? 's' : ''}</h3>
+          <button className="btn-icon" onClick={onClose}><X size={20} /></button>
+        </div>
+        <p className="modal-delete-msg">
+          Are you sure you want to delete <strong>{events.length}</strong> selected event{events.length !== 1 ? 's' : ''}?
+          This action cannot be undone.
+        </p>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+            <Trash2 size={16} />
+            {deleting ? 'Deleting…' : 'Delete All'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -186,6 +226,9 @@ const Events = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [modal, setModal]             = useState(null); // null | { mode: 'create'|'edit', event }
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const selectAllRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -199,6 +242,15 @@ const Events = () => {
     const matchStatus = statusFilter === 'All' || e.event_status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every(e => selectedIds.has(e.id));
+  const someFilteredSelected = filtered.some(e => selectedIds.has(e.id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someFilteredSelected && !allFilteredSelected;
+    }
+  }, [someFilteredSelected, allFilteredSelected]);
 
   const handleSaved = (saved) => {
     setEvents(prev => {
@@ -214,11 +266,47 @@ const Events = () => {
 
   const handleDeleted = (id) => {
     setEvents(prev => prev.filter(e => e.id !== id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleted = (ids) => {
+    const idSet = new Set(ids);
+    setEvents(prev => prev.filter(e => !idSet.has(e.id)));
+    setSelectedIds(new Set());
   };
 
   const openCreate = () => setModal({ mode: 'create', event: { ...EMPTY_EVENT } });
   const openEdit   = (e, ev) => { ev.stopPropagation(); setModal({ mode: 'edit', event: { ...e } }); };
   const openDelete = (e, ev) => { ev.stopPropagation(); setDeleteTarget(e); };
+
+  const toggleRow = (id, ev) => {
+    ev.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filtered.forEach(e => next.delete(e.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach(e => next.add(e.id));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+  const selectedEvents = events.filter(e => selectedIds.has(e.id));
 
   return (
     <div className="events-container animate-fade-in">
@@ -261,15 +349,34 @@ const Events = () => {
               className="search-input"
             />
           </div>
-          <p className="results-count text-secondary">
-            {filtered.length} event{filtered.length !== 1 ? 's' : ''}
-          </p>
+          {selectedIds.size > 0 ? (
+            <div className="bulk-actions">
+              <span className="bulk-count">{selectedIds.size} selected</span>
+              <button className="btn btn-secondary btn-sm" onClick={clearSelection}>Clear</button>
+              <button className="btn btn-danger btn-sm" onClick={() => setBulkDeleteOpen(true)}>
+                <Trash2 size={14} /> Delete Selected
+              </button>
+            </div>
+          ) : (
+            <p className="results-count text-secondary">
+              {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
+                <th className="checkbox-col">
+                  <input
+                    type="checkbox"
+                    ref={selectAllRef}
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all events"
+                  />
+                </th>
                 <th>Event Name</th>
                 <th>Client</th>
                 <th>Start Date</th>
@@ -284,8 +391,16 @@ const Events = () => {
                 <tr
                   key={event.id}
                   onClick={() => navigate(`/events/${event.id}`)}
-                  className="clickable-row"
+                  className={`clickable-row ${selectedIds.has(event.id) ? 'row-selected' : ''}`}
                 >
+                  <td className="checkbox-col" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(event.id)}
+                      onChange={e => toggleRow(event.id, e)}
+                      aria-label={`Select ${event.event_name}`}
+                    />
+                  </td>
                   <td className="font-medium">{event.event_name}</td>
                   <td className="text-secondary">{event.client_name || '—'}</td>
                   <td>
@@ -319,7 +434,7 @@ const Events = () => {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={7} className="empty-row">
+                  <td colSpan={8} className="empty-row">
                     {searchTerm || statusFilter !== 'All'
                       ? 'No events match your search.'
                       : 'No events yet — create your first event.'}
@@ -345,6 +460,13 @@ const Events = () => {
           event={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onDeleted={handleDeleted}
+        />
+      )}
+      {bulkDeleteOpen && (
+        <BulkDeleteModal
+          events={selectedEvents}
+          onClose={() => setBulkDeleteOpen(false)}
+          onDeleted={handleBulkDeleted}
         />
       )}
     </div>

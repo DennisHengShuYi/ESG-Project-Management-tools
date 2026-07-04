@@ -1,12 +1,30 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getEventsFull, getCorporateGovernance, getSettings, saveSettings } from '../utils/db';
 import { useReportingYear } from '../hooks/useReportingYear';
-import { CheckCircle2, AlertCircle, Circle, Download } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Circle, Download, ListChecks, Plus, Trash2 } from 'lucide-react';
 import './SDGDashboard.css';
 
 /* ── Status constants ─────────────────────────────────────────────── */
 const STATUS = { ACHIEVED: 'achieved', PARTIAL: 'partial', NOT_STARTED: 'not_started' };
 const statusLabel = { achieved: 'Achieved', partial: 'In Progress', not_started: 'Not Started' };
+
+/* ── Full UN SDG catalog ──────────────────────────────────────────────
+   Used to let the org add/remove goals from tracking. Only the goals below
+   in DEFAULT_TRACKED ship with real computed metrics/thresholds; any other
+   goal added from this catalog renders as a placeholder card until its
+   data source is wired up. */
+const SDG_CATALOG = [
+  { num: 1,  name: 'No Poverty', color: '#E5243B', target: '1.4 Equal rights to economic resources | 1.5 Build resilience to shocks' },
+  { num: 2,  name: 'Zero Hunger', color: '#DDA63A', target: '2.1 End hunger, ensure food access | 2.4 Sustainable food production' },
+  { num: 4,  name: 'Quality Education', color: '#C5192D', target: '4.4 Relevant skills for employment | 4.7 Education for sustainable development' },
+  { num: 9,  name: 'Industry, Innovation & Infrastructure', color: '#FD6925', target: '9.4 Upgrade infrastructure for sustainability | 9.5 Enhance research & innovation' },
+  { num: 14, name: 'Life Below Water', color: '#0A97D9', target: '14.1 Reduce marine pollution | 14.2 Protect marine ecosystems' },
+  { num: 15, name: 'Life on Land', color: '#56C02B', target: '15.2 Sustainable forest management | 15.5 Halt biodiversity loss' },
+  { num: 17, name: 'Partnerships for the Goals', color: '#19486A', target: '17.16 Global partnerships | 17.17 Effective public-private partnerships' },
+];
+
+const DEFAULT_TRACKED = [3, 5, 6, 7, 8, 10, 11, 12, 13, 16];
 
 /* ── Icons ────────────────────────────────────────────────────────── */
 const AchievementIcon = ({ status }: { status: string }) => {
@@ -52,6 +70,19 @@ const SDGDashboard = () => {
   const [editFields, setEditFields]  = useState<any>({});
   const [saving, setSaving]          = useState(false);
   const [saveMsg, setSaveMsg]        = useState('');
+
+  /* Tracked-goals management (add/remove which SDGs appear on the board).
+     Kept per reporting year — each year gets its own selection, stored under
+     settings.tracked_sdgs_by_year[year]. Falls back to the legacy flat
+     settings.tracked_sdgs (pre-per-year), then to the built-in default. */
+  const [manageOpen, setManageOpen] = useState(false);
+
+  const trackedNums: number[] = (() => {
+    const byYear = settings.tracked_sdgs_by_year?.[selectedYear];
+    if (Array.isArray(byYear) && byYear.length > 0) return byYear;
+    if (Array.isArray(settings.tracked_sdgs) && settings.tracked_sdgs.length > 0) return settings.tracked_sdgs;
+    return DEFAULT_TRACKED;
+  })();
 
   useEffect(() => {
     getEventsFull().then(setEvents);
@@ -470,15 +501,42 @@ const SDGDashboard = () => {
     },
   ];
 
-  const achieved   = sdgs.filter(s => s.status === STATUS.ACHIEVED).length;
-  const partial    = sdgs.filter(s => s.status === STATUS.PARTIAL).length;
-  const notStarted = sdgs.filter(s => s.status === STATUS.NOT_STARTED).length;
+  /* Goals with no computed logic yet (added from the catalog but not one of
+     the 10 built-in ones) render as an untracked placeholder rather than a
+     bogus "Achieved". */
+  const definedNums = sdgs.map(s => s.num);
+  const placeholderSdgs = SDG_CATALOG
+    .filter(c => !definedNums.includes(c.num))
+    .map(c => ({
+      num: c.num, name: c.name, color: c.color, target: c.target,
+      metric: 'No metrics linked yet — this goal has no configured data source.',
+      status: STATUS.NOT_STARTED,
+      pct: 0,
+      thresholdFields: [] as any[],
+    }));
+  const allSdgs = [...sdgs, ...placeholderSdgs].sort((a, b) => a.num - b.num);
+  const visibleSdgs = allSdgs.filter(s => trackedNums.includes(s.num));
+
+  const achieved   = visibleSdgs.filter(s => s.status === STATUS.ACHIEVED).length;
+  const partial    = visibleSdgs.filter(s => s.status === STATUS.PARTIAL).length;
+  const notStarted = visibleSdgs.filter(s => s.status === STATUS.NOT_STARTED).length;
+
+  /* ── Add / remove a goal from tracking (scoped to selectedYear) ──── */
+  const toggleTracked = async (num: number) => {
+    const next = trackedNums.includes(num)
+      ? trackedNums.filter(n => n !== num)
+      : [...trackedNums, num].sort((a, b) => a - b);
+    const byYear = { ...(settings.tracked_sdgs_by_year || {}), [selectedYear]: next };
+    const merged = { ...settings, tracked_sdgs_by_year: byYear };
+    setSettings(merged);
+    await saveSettings(merged);
+  };
 
   /* ── Export CSV ─────────────────────────────────────────────────── */
   const handleExportCsv = () => {
     const header = 'SDG,Name,Status,Progress (%),Metric,Target\n';
     const escape = (v: any) => `"${String(v).replace(/"/g, '""')}"`;
-    const rows = sdgs.map(s =>
+    const rows = visibleSdgs.map(s =>
       [s.num, s.name, statusLabel[s.status], s.pct.toFixed(0), s.metric, s.target]
         .map(escape).join(','));
     const csv = header + rows.join('\n');
@@ -540,6 +598,9 @@ const SDGDashboard = () => {
           <select className="input-field" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button className="btn btn-secondary" onClick={() => setManageOpen(true)}>
+            <ListChecks size={18} /> Manage Goals
+          </button>
           <button className="btn btn-primary" onClick={handleExportCsv}>
             <Download size={18} /> Export CSV
           </button>
@@ -551,12 +612,12 @@ const SDGDashboard = () => {
         <div className="sdg-summary-chip chip-achieved"><CheckCircle2 size={15} /> {achieved} Achieved</div>
         <div className="sdg-summary-chip chip-partial"><AlertCircle size={15} /> {partial} In Progress</div>
         <div className="sdg-summary-chip chip-none"><Circle size={15} /> {notStarted} Not Started</div>
-        <div className="sdg-summary-chip chip-total">{sdgs.length} SDGs tracked out of 17</div>
+        <div className="sdg-summary-chip chip-total">{visibleSdgs.length} SDGs tracked out of 17</div>
       </div>
 
       {/* ── SDG card grid ──────────────────────────────────────────── */}
       <div className="sdg-grid">
-        {sdgs.map(sdg => (
+        {visibleSdgs.map(sdg => (
           <div key={sdg.num} className={`glass-card sdg-card sdg-card-${sdg.status}`}>
 
             {/* Header band */}
@@ -565,15 +626,17 @@ const SDGDashboard = () => {
               <div className="sdg-header-right">
                 <span className="sdg-name">{sdg.name}</span>
               </div>
-              {/* Edit button — every card has this */}
-              <button
-                className="sdg-edit-btn"
-                onClick={() => openEdit(sdg)}
-                title={`Configure SDG ${sdg.num} thresholds`}
-                aria-label={`Configure thresholds for SDG ${sdg.num}`}
-              >
-                <PencilIcon />
-              </button>
+              {/* Edit button — only for goals with configurable thresholds */}
+              {sdg.thresholdFields.length > 0 && (
+                <button
+                  className="sdg-edit-btn"
+                  onClick={() => openEdit(sdg)}
+                  title={`Configure SDG ${sdg.num} thresholds`}
+                  aria-label={`Configure thresholds for SDG ${sdg.num}`}
+                >
+                  <PencilIcon />
+                </button>
+              )}
             </div>
 
             {/* Card body */}
@@ -597,7 +660,7 @@ const SDGDashboard = () => {
       {/* ════════════════════════════════════════════════════════════
           THRESHOLD EDIT MODAL
       ════════════════════════════════════════════════════════════ */}
-      {editSdg && (
+      {editSdg && createPortal(
         <div className="sdg-modal-overlay" onClick={closeEdit}>
           <div className="sdg-modal" onClick={e => e.stopPropagation()}>
 
@@ -695,7 +758,59 @@ const SDGDashboard = () => {
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ════════════════════════════════════════════════════════════
+          MANAGE TRACKED GOALS MODAL
+      ════════════════════════════════════════════════════════════ */}
+      {manageOpen && createPortal(
+        <div className="sdg-modal-overlay" onClick={() => setManageOpen(false)}>
+          <div className="sdg-modal sdg-manage-modal" onClick={e => e.stopPropagation()}>
+
+            <div className="sdg-modal-header">
+              <div className="sdg-modal-title-row">
+                <div>
+                  <div className="sdg-modal-title">Manage Tracked Goals</div>
+                  <div className="sdg-modal-subtitle">Add or remove UN SDGs tracked for FY{selectedYear}</div>
+                </div>
+              </div>
+              <button className="sdg-modal-close" onClick={() => setManageOpen(false)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="sdg-modal-body">
+              <div className="sdg-manage-list">
+                {allSdgs.map(def => {
+                  const tracked = trackedNums.includes(def.num);
+                  return (
+                    <div key={def.num} className="sdg-manage-row">
+                      <span className="sdg-manage-badge" style={{ background: def.color }}>{def.num}</span>
+                      <span className="sdg-manage-name">{def.name}</span>
+                      <button
+                        className={`btn btn-sm ${tracked ? 'btn-secondary' : 'btn-primary'}`}
+                        onClick={() => toggleTracked(def.num)}
+                      >
+                        {tracked ? <><Trash2 size={14} /> Remove</> : <><Plus size={14} /> Add</>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="sdg-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setManageOpen(false)}>Done</button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

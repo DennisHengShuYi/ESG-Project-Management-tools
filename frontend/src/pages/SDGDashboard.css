@@ -242,6 +242,9 @@
   border-radius: 14px;
   width: 100%;
   max-width: 440px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 24px 60px rgba(0,0,0,0.45);
   overflow: hidden;
   animation: sdg-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -258,6 +261,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-shrink: 0;
   padding: 1.1rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--surface-hover);
@@ -322,6 +326,9 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sdg-modal-field {
@@ -414,6 +421,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex-shrink: 0;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-color);
   background: var(--surface-hover);
@@ -430,4 +438,55 @@
 @keyframes sdg-msg-in {
   from { opacity: 0; transform: translateX(-6px); }
   to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Manage Tracked Goals modal ──────────────────────────────────── */
+.sdg-manage-modal {
+  max-width: 520px;
+}
+
+.sdg-manage-modal .sdg-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  gap: 0.5rem;
+}
+
+.sdg-manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sdg-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.sdg-manage-badge {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sdg-manage-name {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
 }

@@ -85,13 +85,15 @@ const Governance = () => {
           <h3>B1 — Governance</h3>
 
           <h4 className="gov-subsection">Oversight Mechanism</h4>
-          <div className="form-group">
-            <label>Name of Board / Committee</label>
-            {inp('gov_committee_name', 'e.g. Sustainability Committee')}
-          </div>
-          <div className="form-group">
-            <label>Sustainability Oversight Frequency</label>
-            {inp('gov_meeting_frequency', 'e.g. Quarterly')}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name of Board / Committee</label>
+              {inp('gov_committee_name', 'e.g. Sustainability Committee')}
+            </div>
+            <div className="form-group">
+              <label>Sustainability Oversight Frequency</label>
+              {inp('gov_meeting_frequency', 'e.g. Quarterly')}
+            </div>
           </div>
           <div className="form-group">
             <label>Description of Controls / Procedures</label>
@@ -113,17 +115,19 @@ const Governance = () => {
           </div>
 
           <h4 className="gov-subsection">Executive Accountability</h4>
-          <div className="form-group">
-            <label>Name &amp; Role of Accountable Executive</label>
-            {inp('gov_exec_name_role', 'e.g. Chief Sustainability Officer — Jane Doe')}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name &amp; Role of Accountable Executive</label>
+              {inp('gov_exec_name_role', 'e.g. Chief Sustainability Officer — Jane Doe')}
+            </div>
+            <div className="form-group">
+              <label>Board Reporting Document URL</label>
+              {inp('gov_board_report_url', 'https://...')}
+            </div>
           </div>
           <div className="form-group">
             <label>General Executive Accountability Description</label>
             {tf('gov_executive_accountability_text')}
-          </div>
-          <div className="form-group">
-            <label>Board Reporting Document URL</label>
-            {inp('gov_board_report_url', 'https://...')}
           </div>
           <div className="form-group">
             <label className="checkbox-label">
@@ -202,19 +206,23 @@ const Governance = () => {
             <label>Risk Prioritisation Criteria</label>
             {tf('risk_prioritisation_text')}
           </div>
-          <div className="form-group">
-            <label>Frequency of Risk Review Cycle</label>
-            {inp('risk_review_frequency', 'e.g. Annual, Semi-annual')}
+          <div className="form-row">
+            <div className="form-group">
+              <label>Frequency of Risk Review Cycle</label>
+              {inp('risk_review_frequency', 'e.g. Annual, Semi-annual')}
+            </div>
           </div>
 
           <h4 className="gov-subsection">ERM Matrix Integration</h4>
-          <div className="form-group">
-            <label>ERM Integration Status</label>
-            <select name="risk_erm_integration_status" value={formData.risk_erm_integration_status || ''} onChange={handleInputChange} className="input-field">
-              <option value="Fully Integrated">Fully Integrated</option>
-              <option value="Partially Integrated">Partially Integrated</option>
-              <option value="Not Yet Integrated">Not Yet Integrated</option>
-            </select>
+          <div className="form-row">
+            <div className="form-group">
+              <label>ERM Integration Status</label>
+              <select name="risk_erm_integration_status" value={formData.risk_erm_integration_status || ''} onChange={handleInputChange} className="input-field">
+                <option value="Fully Integrated">Fully Integrated</option>
+                <option value="Partially Integrated">Partially Integrated</option>
+                <option value="Not Yet Integrated">Not Yet Integrated</option>
+              </select>
+            </div>
           </div>
           <div className="form-group">
             <label>How Sustainability Risks Map onto the Risk Register</label>
