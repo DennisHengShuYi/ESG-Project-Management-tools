@@ -6,6 +6,7 @@ interface UserPayload {
   id: string;
   email: string;
   organisation_id: string;
+  organisation_name?: string | null;
   role?: 'admin' | 'member';
   module_permissions?: Record<string, PermissionLevel>;
   full_name?: string | null;

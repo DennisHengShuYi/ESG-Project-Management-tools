@@ -96,6 +96,11 @@ const Layout = () => {
                 <span className="dropdown-email" title={userEmail}>
                   {userEmail}
                 </span>
+                {user?.organisation_name && (
+                  <span className="dropdown-org" style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    {user.organisation_name}
+                  </span>
+                )}
               </div>
               <button 
                 type="button" 

@@ -23,7 +23,7 @@ export const requireAuth = async (req, res, next) => {
     // immediately, not only after the token expires.
     const { data: userRow, error: userError } = await supabase
       .from('users')
-      .select('role, module_permissions, is_active, full_name')
+      .select('role, module_permissions, is_active, full_name, organisation:organisations ( name )')
       .eq('id', decoded.id)
       .maybeSingle();
 
@@ -38,6 +38,7 @@ export const requireAuth = async (req, res, next) => {
       id: decoded.id,
       email: decoded.email,
       organisation_id: decoded.organisation_id,
+      organisation_name: userRow.organisation?.name || null,
       role: userRow.role || 'member',
       module_permissions: userRow.module_permissions || {},
       full_name: userRow.full_name || null,

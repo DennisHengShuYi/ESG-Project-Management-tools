@@ -39,7 +39,7 @@ router.post('/register', async (req, res) => {
     // Validate organisation_id exists
     const { data: org, error: orgError } = await supabase
       .from('organisations')
-      .select('id')
+      .select('id, name')
       .eq('id', organisation_id)
       .maybeSingle();
 
@@ -96,7 +96,10 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       success: true,
       token,
-      user: newUser,
+      user: {
+        ...newUser,
+        organisation_name: org.name || null,
+      },
     });
   } catch (err) {
     console.error('register error:', err);
@@ -115,7 +118,7 @@ router.post('/login', async (req, res) => {
     // Fetch user
     const { data: user, error: fetchError } = await supabase
       .from('users')
-      .select('id, email, password_hash, organisation_id, role, module_permissions, full_name, is_active')
+      .select('id, email, password_hash, organisation_id, role, module_permissions, full_name, is_active, organisation:organisations ( name )')
       .eq('email', email)
       .maybeSingle();
 
@@ -149,6 +152,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         organisation_id: user.organisation_id,
+        organisation_name: user.organisation?.name || null,
         role: user.role,
         module_permissions: user.module_permissions,
         full_name: user.full_name,
