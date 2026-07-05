@@ -13,7 +13,7 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [orgId, setOrgId] = useState('');
+  const [orgName, setOrgName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +53,8 @@ const Auth = () => {
       return;
     }
 
-    if (isSignUp && !orgId.trim()) {
-      setError('Organization Code / ID is required.');
+    if (isSignUp && !orgName.trim()) {
+      setError('Organization name is required.');
       setLoading(false);
       return;
     }
@@ -67,7 +67,7 @@ const Auth = () => {
           body: JSON.stringify({
             email,
             password,
-            organisation_id: orgId.trim(),
+            organisation_name: orgName.trim(),
           }),
         });
 
@@ -197,15 +197,19 @@ const Auth = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="orgId">Organization Code / ID</label>
+                <label htmlFor="orgName">Organization Name</label>
                 <input
                   type="text"
-                  id="orgId"
-                  value={orgId}
-                  onChange={(e) => setOrgId(e.target.value)}
-                  placeholder="Enter organization UUID"
+                  id="orgName"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="e.g. Acme Events Sdn Bhd"
                   className="auth-input"
                 />
+                <p className="form-hint">
+                  This creates a new organization with you as its administrator.
+                  Already have a team here? Ask your admin to add you from Admin &gt; Team instead.
+                </p>
               </div>
             </>
           )}
@@ -214,7 +218,7 @@ const Auth = () => {
             {loading ? (
               <span className="spinner"></span>
             ) : isSignUp ? (
-              'Create Account'
+              'Create Admin Account'
             ) : (
               'Sign In'
             )}

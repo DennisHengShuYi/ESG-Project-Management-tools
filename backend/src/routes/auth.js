@@ -29,22 +29,21 @@ router.get('/organisations', async (req, res) => {
 });
 
 // Register user
+//
+// Public "Create Account" page always takes the organisation_name branch:
+// it creates a brand-new organisation and makes the registrant its founding
+// admin. Joining an existing organisation as a plain member is intentionally
+// not reachable from that page — real teammates are added by an admin via
+// Admin > Team (POST /api/admin/users) instead.
+//
+// The organisation_id branch still exists because the E2E test harness
+// (frontend/tests/e2e) relies on registering additional users into the
+// already-seeded organisation; it is not exposed anywhere in the UI.
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, organisation_id } = req.body;
-    if (!email || !password || !organisation_id) {
-      return res.status(400).json({ error: 'Email, password, and organization ID are required.' });
-    }
-
-    // Validate organisation_id exists
-    const { data: org, error: orgError } = await supabase
-      .from('organisations')
-      .select('id, name')
-      .eq('id', organisation_id)
-      .maybeSingle();
-
-    if (orgError || !org) {
-      return res.status(400).json({ error: 'Invalid Organization Code / ID.' });
+    const { email, password, organisation_id, organisation_name } = req.body;
+    if (!email || !password || (!organisation_id && !organisation_name?.trim())) {
+      return res.status(400).json({ error: 'Email, password, and an organization name are required.' });
     }
 
     // Check if user already exists
@@ -58,19 +57,43 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email is already registered.' });
     }
 
+    let org;
+    let role;
+
+    if (organisation_name?.trim()) {
+      const { data: newOrg, error: orgInsertError } = await supabase
+        .from('organisations')
+        .insert({ name: organisation_name.trim() })
+        .select('id, name')
+        .single();
+      if (orgInsertError) throw orgInsertError;
+      org = newOrg;
+      role = 'admin';
+    } else {
+      const { data: existingOrg, error: orgError } = await supabase
+        .from('organisations')
+        .select('id, name')
+        .eq('id', organisation_id)
+        .maybeSingle();
+      if (orgError || !existingOrg) {
+        return res.status(400).json({ error: 'Invalid Organization Code / ID.' });
+      }
+      org = existingOrg;
+
+      // First person to register into an organisation with no admin yet
+      // becomes its admin — mirrors the migration-time bootstrap in
+      // schema.sql for any organisation created after that migration ran.
+      const { count: adminCount } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', org.id)
+        .eq('role', 'admin');
+      role = (adminCount || 0) === 0 ? 'admin' : 'member';
+    }
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
-
-    // First person to register into an organisation with no admin yet
-    // becomes its admin — mirrors the migration-time bootstrap in
-    // schema.sql for any organisation created after that migration ran.
-    const { count: adminCount } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .eq('organisation_id', organisation_id)
-      .eq('role', 'admin');
-    const role = (adminCount || 0) === 0 ? 'admin' : 'member';
 
     // Insert user
     const { data: newUser, error: insertError } = await supabase
@@ -78,7 +101,7 @@ router.post('/register', async (req, res) => {
       .insert({
         email,
         password_hash,
-        organisation_id,
+        organisation_id: org.id,
         role,
       })
       .select('id, email, organisation_id, role, module_permissions, full_name')

@@ -1,15 +1,20 @@
 import { test, expect } from '@playwright/test';
 import { BACKEND_URL } from '../../../playwright.config';
-import { deleteUserByEmail } from '../utils/supabase-admin';
+import { deleteUserByEmail, deleteOrganisation } from '../utils/supabase-admin';
 
 // This spec exercises the logged-out flow, so it must not inherit the
 // pre-authenticated storageState the rest of the suite uses.
 test.use({ storageState: { cookies: [], origins: [] } });
 
 const createdEmails: string[] = [];
+// Registering through the UI now always creates a brand-new organisation
+// (see auth.js's organisation_name branch), so every UI registration in
+// this spec leaves one behind that needs its own cleanup.
+const createdOrgIds: string[] = [];
 
 test.afterAll(async () => {
   await Promise.all(createdEmails.map(deleteUserByEmail));
+  await Promise.all(createdOrgIds.map(deleteOrganisation));
 });
 
 /** A structurally-valid (3-segment, decodable payload) but unsigned JWT —
@@ -110,37 +115,23 @@ test('register form: password mismatch is rejected', async ({ page }) => {
   await page.getByLabel('Email Address').fill('mismatch-e2e@example.com');
   await page.getByLabel('Password', { exact: true }).fill('password123');
   await page.getByLabel('Confirm Password').fill('different123');
-  await page.getByLabel('Organization Code / ID').fill('00000000-0000-0000-0000-000000000001');
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await page.getByLabel('Organization Name').fill('Mismatch Test Org');
+  await page.getByRole('button', { name: 'Create Admin Account' }).click();
   await expect(page.getByText('Passwords do not match.')).toBeVisible();
 });
 
-test('FIXED: missing org code now shows the custom JS validation message', async ({ page }) => {
+test('FIXED: missing organization name now shows the custom JS validation message', async ({ page }) => {
   // Regression test, same root cause as the empty-fields test above.
   await page.goto('/');
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await page.getByLabel('Email Address').fill('noorg-e2e@example.com');
   await page.getByLabel('Password', { exact: true }).fill('password123');
   await page.getByLabel('Confirm Password').fill('password123');
-  await page.getByRole('button', { name: 'Create Account' }).click();
-  await expect(page.getByText('Organization Code / ID is required.')).toBeVisible();
+  await page.getByRole('button', { name: 'Create Admin Account' }).click();
+  await expect(page.getByText('Organization name is required.')).toBeVisible();
 });
 
-test('register form: invalid org code shows server error', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Register', exact: true }).click();
-  await page.getByLabel('Email Address').fill(`badorg-e2e-${Date.now()}@example.com`);
-  await page.getByLabel('Password', { exact: true }).fill('password123');
-  await page.getByLabel('Confirm Password').fill('password123');
-  await page.getByLabel('Organization Code / ID').fill('not-a-real-org-id');
-  await page.getByRole('button', { name: 'Create Account' }).click();
-  await expect(page.getByText('Invalid Organization Code / ID.')).toBeVisible();
-});
-
-test('successful registration logs the user in', async ({ page }) => {
-  const orgsRes = await fetch(`${BACKEND_URL}/api/auth/organisations`);
-  const orgs = await orgsRes.json();
-  const organisation_id = orgs[0].id;
+test('successful registration creates a new organisation and logs the user in as its admin', async ({ page }) => {
   const email = `e2e-register-${Date.now()}@example.com`;
   createdEmails.push(email);
 
@@ -149,8 +140,15 @@ test('successful registration logs the user in', async ({ page }) => {
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password', { exact: true }).fill('password123');
   await page.getByLabel('Confirm Password').fill('password123');
-  await page.getByLabel('Organization Code / ID').fill(organisation_id);
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await page.getByLabel('Organization Name').fill(`E2E Register Org ${Date.now()}`);
+
+  const [registerRes] = await Promise.all([
+    page.waitForResponse((res) => res.url().includes('/api/auth/register') && res.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Create Admin Account' }).click(),
+  ]);
+  const { user } = await registerRes.json();
+  expect(user.role).toBe('admin');
+  createdOrgIds.push(user.organisation_id);
 
   await expect(page.getByRole('heading', { name: 'Overview Dashboard' })).toBeVisible({ timeout: 10000 });
 });
@@ -163,7 +161,8 @@ test('registering with an already-used email is rejected, then login with correc
   const password = 'password123';
   createdEmails.push(email);
 
-  // Register once via API directly to seed the duplicate-email scenario.
+  // Register once via the internal organisation_id path (used only by this
+  // harness, not reachable from the UI) to seed the duplicate-email scenario.
   await fetch(`${BACKEND_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -175,8 +174,8 @@ test('registering with an already-used email is rejected, then login with correc
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Confirm Password').fill(password);
-  await page.getByLabel('Organization Code / ID').fill(organisation_id);
-  await page.getByRole('button', { name: 'Create Account' }).click();
+  await page.getByLabel('Organization Name').fill('Duplicate Email Test Org');
+  await page.getByRole('button', { name: 'Create Admin Account' }).click();
   await expect(page.getByText('Email is already registered.')).toBeVisible();
 
   // Now log in with the same credentials instead.

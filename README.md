@@ -181,14 +181,25 @@ dependencies or source code.
 
 ## 6. Accessing the Application
 
+The **Register** tab on the app's login screen always creates a **brand-new organisation**, with you as its founding admin — it's intended only for standing up a fresh org, not for joining an existing one. Regular teammates are added afterward by an admin, from **Admin > Team**, not by self-registering.
+
+### Option A: Just explore with your own organisation
+
 1. Open your browser and navigate to `http://localhost:5173`.
-2. To use the application, click on **Register** to create a user account.
-3. During registration, you will be prompted for an **Organization Code / ID**. Enter the default seeded organization ID:
-   ```text
-   00000000-0000-0000-0000-000000000001
-   ```
-   *(This links your account to "Green Generation Events Sdn Bhd", which was created by the schema/seed scripts).*
-4. Once registered, log in using your email and password to access the ESG dashboards, Event Lists, and reporting features.
+2. Click **Register**, fill in an email/password and any Organization Name, and submit.
+3. You're logged in as that new organisation's admin — but it starts empty, since the seeded demo events (step 4 above) belong to a different, pre-made organisation.
+
+### Option B: See the seeded demo dataset instead
+
+The demo events/financials/governance data created by `reseed_events.js` all belong to one fixed seeded organisation ("Green Generation Events Sdn Bhd", id `00000000-0000-0000-0000-000000000001`). Nobody has a login into it yet, and the UI's Register tab can no longer join an existing org — so create its first admin with a one-time direct API call instead:
+
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"ChangeMe123!","organisation_id":"00000000-0000-0000-0000-000000000001"}'
+```
+
+Then log in at `http://localhost:5173` with that same email/password to see the full seeded dashboards, Event Lists, and reporting features. From there, use **Admin > Team** to add any further teammates to this organisation.
 
 ---
 
