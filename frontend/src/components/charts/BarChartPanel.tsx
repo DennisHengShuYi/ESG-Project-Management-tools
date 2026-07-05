@@ -1,6 +1,7 @@
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartEmpty from './ChartEmpty';
 import ChartTooltip from './ChartTooltip';
+import { truncateLabel } from './chartTheme';
 
 interface BarSeries {
   dataKey: string;
@@ -59,7 +60,15 @@ const BarChartPanel = ({
           </>
         ) : (
           <>
-            <XAxis dataKey={xKey} tick={{ fontSize: 10 }} angle={-25} textAnchor="end" interval={0} height={60} />
+            <XAxis
+              dataKey={xKey}
+              tick={{ fontSize: 10 }}
+              tickFormatter={(v: string) => truncateLabel(v, 16)}
+              angle={-35}
+              textAnchor="end"
+              interval={0}
+              height={70}
+            />
             <YAxis tick={{ fontSize: 10 }} tickFormatter={yTickFormatter} />
           </>
         )}

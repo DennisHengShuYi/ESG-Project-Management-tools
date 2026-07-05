@@ -7,7 +7,7 @@ import { useReportingYear } from '../hooks/useReportingYear';
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
 } from 'recharts';
-import { CHART_COLORS as C, truncateLabel as short, ChartTooltip, ChartEmpty, KpiCard, DonutChart, BarChartPanel, GaugeBar } from '../components/charts';
+import { CHART_COLORS as C, truncateLabel, ChartTooltip, ChartEmpty, KpiCard, DonutChart, BarChartPanel, GaugeBar } from '../components/charts';
 import { useAuth } from '../contexts/AuthContext';
 import './Dashboard.css';
 
@@ -151,20 +151,20 @@ const Dashboard = () => {
 
   /* ── Chart datasets ────────────────────────────────────────────── */
   const emissionsData = yearEvents.map(e => ({
-    name: short(e.event_name),
+    name: e.event_name,
     'Scope 1': +((e.scope1_tco2e) || 0).toFixed(2),
     'Scope 2': +((e.scope2_lb_tco2e) || 0).toFixed(2),
     'Scope 3': +((e.scope3_tco2e) || 0).toFixed(2),
   }));
 
   const wasteByEventData = yearEvents.map(e => ({
-    name: short(e.event_name),
+    name: e.event_name,
     'Hazardous':     +((e.waste_hazardous_kg    || 0) / 1000).toFixed(3),
     'Non-Hazardous': +((e.waste_nonhazardous_kg || 0) / 1000).toFixed(3),
   }));
 
   const energyData = yearEvents.map(e => ({
-    name: short(e.event_name),
+    name: e.event_name,
     'Total Energy (MWh)': +(e.total_energy_mwh || 0).toFixed(2),
     'Renewable %':        +(e.renewable_energy_pct || 0).toFixed(1),
   }));
@@ -195,14 +195,14 @@ const Dashboard = () => {
     || climateRiskData[0]['Chronic Physical Risk'] > 0;
 
   const financialData = yearEvents.map(e => ({
-    name: short(e.event_name),
+    name: e.event_name,
     'Budget': +(e.budget_estimated || 0),
     'Actual Cost': +(e.budget_actual || 0),
     'Revenue': +(e.revenue_actual || 0),
   }));
 
   const healthData = yearEvents.map(e => ({
-    name: short(e.event_name),
+    name: e.event_name,
     'Training Hours': +(e.training_hours_total || 0),
     'LTIR': +(e.ltir || 0).toFixed(2),
   }));
@@ -331,7 +331,15 @@ const Dashboard = () => {
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={energyData} margin={{ top: 20, right: 30, left: -10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" interval={0} height={60} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v: string) => truncateLabel(v, 16)}
+                angle={-35}
+                textAnchor="end"
+                interval={0}
+                height={70}
+              />
               <YAxis yAxisId="left"  tick={{ fontSize: 10 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} unit="%" domain={[0, 100]} />
               <Tooltip content={<ChartTooltip />} />

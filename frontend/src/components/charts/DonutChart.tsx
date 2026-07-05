@@ -21,28 +21,32 @@ const DonutChart = ({
   data,
   height = 220,
   valueSuffix = '',
-  innerRadius = 55,
-  outerRadius = 85,
+  innerRadius = 45,
+  outerRadius = 70,
   emptyMessage,
 }: DonutChartProps) => {
   if (!data || data.length === 0) return <ChartEmpty message={emptyMessage} />;
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
+      <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
         <Pie
           data={data}
           cx="50%"
-          cy="45%"
+          cy="50%"
           innerRadius={innerRadius}
           outerRadius={outerRadius}
           paddingAngle={3}
           dataKey="value"
-          label={({ name, value }) => `${name}: ${value}${valueSuffix}`}
-          labelLine={false}
         />
-        <Tooltip formatter={(v) => `${v}${valueSuffix}`} contentStyle={TOOLTIP_STYLE} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Tooltip formatter={(v: number) => `${v}${valueSuffix}`} contentStyle={TOOLTIP_STYLE} />
+        <Legend
+          verticalAlign="bottom"
+          height={40}
+          iconSize={9}
+          wrapperStyle={{ fontSize: 11, paddingTop: 10, lineHeight: 1.6 }}
+          formatter={(value: string, entry: any) => `${value}: ${entry?.payload?.value ?? ''}${valueSuffix}`}
+        />
       </PieChart>
     </ResponsiveContainer>
   );
