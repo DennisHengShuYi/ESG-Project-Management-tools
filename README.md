@@ -57,12 +57,14 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_KEY=your-service-role-key-here
 JWT_SECRET=your-random-long-jwt-secret-key-here
+# FRONTEND_ORIGIN=https://your-deployed-frontend.example.com
 ```
 * **`PORT`**: The port that the Express backend will listen on (default is `5000`).
 * **`SUPABASE_URL`**: Your Supabase project URL.
 * **`SUPABASE_ANON_KEY`**: The client-side public anon key.
 * **`SUPABASE_SERVICE_KEY`**: The secret service role key (bypasses RLS, used for administrative scripts/backend tasks).
 * **`JWT_SECRET`**: A custom secure random string used to sign local user tokens.
+* **`FRONTEND_ORIGIN`** *(optional)*: An extra allowed CORS origin, on top of the built-in `localhost:5173` / `localhost:3000` defaults. Only needed once you deploy the frontend somewhere other than localhost.
 
 ### Frontend Setup
 
@@ -192,7 +194,7 @@ dependencies or source code.
 
 ## 7. Running End-to-End (E2E) Tests
 
-The project includes E2E test suites powered by Playwright to verify authentication, event CRUD, and dashboard calculations.
+The project includes E2E test suites powered by Playwright covering authentication, navigation, event CRUD, RBAC/permission gating, admin & team management, and the ESG dashboards (Dashboard, Governance, SDG, Reporting, Event Detail).
 
 To run the tests:
 1. Ensure both the frontend and backend servers are running.

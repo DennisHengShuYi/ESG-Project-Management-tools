@@ -1,7 +1,7 @@
-// Per-module read/write enforcement. Admins bypass every check here — see
-// plan.md §2/§4 for the full design. `req.user.module_permissions` is
-// populated fresh per request by middleware/auth.js, not trusted from a
-// long-lived JWT claim, so a permission change takes effect immediately.
+// Per-module read/write enforcement. Admins bypass every check here.
+// `req.user.module_permissions` is populated fresh per request by
+// middleware/auth.js, not trusted from a long-lived JWT claim, so a
+// permission change takes effect immediately.
 
 /** Shared check used by both the middleware below and ad-hoc route logic
  * (e.g. governance.js, which has to check multiple modules in one request). */

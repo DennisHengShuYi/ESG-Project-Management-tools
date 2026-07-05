@@ -625,7 +625,6 @@ alter table public.module_hr_diversity
 
 -- ═══════════════════════════════════════════════════════════════════
 -- MIGRATIONS: Multi-user accounts, per-module permissions, audit trail
--- See plan.md at the repo root for the full design.
 -- Defensive create — `users` predates this file and lives only in the
 -- live database, so this only fills in what's missing rather than
 -- assuming a from-scratch table.
@@ -689,9 +688,8 @@ end $$;
 
 -- Bootstrap: every organisation needs at least one admin so someone can
 -- grant permissions through the new Team UI. If an org has no admin yet,
--- promote its earliest-created user. Resolves plan.md §8's "who becomes
--- admin first" open item without needing manual DB access — re-running
--- this migration is a no-op for orgs that already have an admin.
+-- promote its earliest-created user, without needing manual DB access —
+-- re-running this migration is a no-op for orgs that already have an admin.
 do $$
 declare
   org record;
@@ -710,8 +708,7 @@ begin
   end loop;
 end $$;
 
--- Rollout safety: resolves plan.md §8's other open item in favour of the
--- softer option — every user that already exists as of this migration is
+-- Rollout safety: every user that already exists as of this migration is
 -- back-filled with full read+write on every module, so nobody is locked
 -- out of data they could see a moment before this shipped. New users
 -- created afterward via the Admin > Team UI start with zero permissions
