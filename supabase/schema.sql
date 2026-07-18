@@ -128,7 +128,7 @@ create table if not exists public.module_health_safety_labour (
   total_hours_worked          float8      not null default 0,
   ltir                        float8      generated always as (
     case when total_hours_worked > 0
-    then round((lti_count * 1000000.0 / total_hours_worked)::numeric, 4)::float8
+    then round((lti_count * 200000.0 / total_hours_worked)::numeric, 4)::float8
     else 0.0 end
   ) stored,
   safety_training_headcount   int         not null default 0,
@@ -349,7 +349,7 @@ create table if not exists public.event_timeline (
   actual_end_date         date,
   schedule_variance_days  int     generated always as (
     case when actual_end_date is not null and planned_end_date is not null
-    then (actual_end_date - planned_end_date)::int
+    then (planned_end_date - actual_end_date)::int
     else null end
   ) stored,
 
